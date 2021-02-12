@@ -177,12 +177,12 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-count">6</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-tags">
-        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-count">5</span>
         <span class="site-state-item-name">标签</span>
       </div>
   </nav>
@@ -219,6 +219,126 @@
 
 
     <div class="main-inner index posts-expand">
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-02-12-2021%E5%B9%B4%E7%9A%84%E5%AD%A6%E4%B9%A0%E8%AE%A1%E5%88%92/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021-02-12-2021%E5%B9%B4%E7%9A%84%E5%AD%A6%E4%B9%A0%E8%AE%A1%E5%88%92/" class="post-title-link" itemprop="url">2021年的学习计划</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2021-02-12 17:05:14 / 修改时间：21:41:39" itemprop="dateCreated datePublished" datetime="2021-02-12T17:05:14+08:00">2021-02-12</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h1 id="学习方向"><a href="#学习方向" class="headerlink" title="学习方向"></a>学习方向</h1><p>2021年给自己定了一些学习内容，包括：</p>
+<ul>
+<li>补专业课程<ul>
+<li>编译原理   【优先级高】</li>
+<li>计算机操作系统 【优先级高】</li>
+<li>网络编程   【优先级中】</li>
+<li>设计模式   【优先级低】</li>
+<li>计算机组成原理 【优先级低】</li>
+<li>数据结构和算法 【优先级低】</li>
+</ul>
+</li>
+<li>深入学习一门语言<ul>
+<li>Python 或者 Golang</li>
+</ul>
+</li>
+</ul>
+<p>上面我根据自己的需要标注了学习的优先级。在2020年底已经学习了其中一部分。</p>
+<p>为啥想着学这些呢？</p>
+<p>在之前的工作中，我主要关注下面这些，包括</p>
+<ul>
+<li>安全产品<ul>
+<li>白盒扫描</li>
+<li>黑盒扫描</li>
+<li>WAF</li>
+<li>HIDS</li>
+</ul>
+</li>
+<li>安全研究<ul>
+<li>容器</li>
+<li>Web</li>
+<li>二进制</li>
+</ul>
+</li>
+<li>安全建设<ul>
+<li>SDL</li>
+</ul>
+</li>
+</ul>
+<p>这些方向或浅或深地都和专业课程内容相关。比如说：</p>
+<ul>
+<li><p>开发中用的很多库背后有编译原理的知识点。比如搞Web安全的都知道FastJSON RCE漏洞，FastJSON做序列化时也会对输入字符串做词法分析。在分析FastJSON漏洞时如果清楚词法分析的概念和状态机实现，就可能不会迷失在代码细节中。词法分析就是编译原理前端部分的一小块内容。</p>
+</li>
+<li><p>WAF中SQL注入检测可以基于SQL语义分析，理论上效果比正则写的防护规则好很多，而语义分析就属于编译原理中前端部分的一块内容。</p>
+</li>
+<li><p>学习二进制安全时，栈溢出和可执行文件的内存分布、函数调用过程等知识点非常相关，整型溢出和数字在计算机中的存储方式等知识点有关。这些知识点都在操作系统有讲到。</p>
+</li>
+<li><p>之前在做开发工作时也会有不少需要操作系统知识的地方。比方说使用Python时因为GIL的存在，所以线程并不是同时运行，但是为啥线程在IO密集型应用中能够提高运行速度呢？这就涉及到Python实现和操作系统线程调度的知识。</p>
+</li>
+<li><p>之前在研究云安全时遇到过一个case，就是容器内用户身份已经是root但是无法做arp欺骗攻击其他同网段同宿主机的容器。这个case的原因和网络知识的raw_socket有些关系。</p>
+</li>
+<li><p>之前在做开发时对Python2.7的gevent monkey补丁工作原理有疑问。虽然网络上有很多的文章分析，但是自己总是看得不是很明白。我想原因是这一块涉及到的”阻塞与非阻塞、同步与非同步、多路复用”等知识点是需要花时间成体系理解的。这些知识点在网络编程中会有详细说明。</p>
+</li>
+</ul>
+<p>在工作中，很常用的学习方法是遇到啥就去查，边查边学。这样的学习方式好处是学习动力足、能快速解决问题，坏处是有时候这种学习方法不灵，比方说学习语义分析时，就必须要把词法分析、语法分析先学了，这其中需要花费的时间和精力还是不少的。如果靠自己在网上搜索的零零散散的知识点学习，效率就太低了。</p>
+<p>总的来说，这一部分知识和工作的关联程度很高，且不太适合边查边学，所以需要系统地学习。</p>
+<p>事实上，我觉得 编译原理 和 计算机操作系统 两门课太重要了，没学过且有一些需求驱动的读者，都可以看一看，不会亏。指不定就能花20%的时间掌握其中80%的内容，解决工作中的技术难题呢。</p>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
 
     
 
