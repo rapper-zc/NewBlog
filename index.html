@@ -253,7 +253,7 @@
       <span class="post-meta-item-text">发表于</span>
       
 
-      <time title="创建时间：2021-03-06 16:54:42 / 修改时间：23:33:28" itemprop="dateCreated datePublished" datetime="2021-03-06T16:54:42+08:00">2021-03-06</time>
+      <time title="创建时间：2021-03-06 16:54:42 / 修改时间：23:37:07" itemprop="dateCreated datePublished" datetime="2021-03-06T16:54:42+08:00">2021-03-06</time>
     </span>
 
   
@@ -293,7 +293,7 @@
 <li><p>OpenRASP怎么做SQL注入检测？</p>
 <p>  SQL注入检测策略默认开启了三种：</p>
 <pre><code>* 词法分析后，判断用户输入是否改变SQL执行逻辑
-* 词法分析后，判断SQL语句是否有堆查询、使用黑名单函数等
+* 词法分析后，判断SQL语句是否有写文件操作、使用黑名单函数等
 * sql server执行异常</code></pre>
 <p>  第一类SQL注入检测策略：对即将执行的sql语句做分词，判断用户的输入占用了几个token，正常情况下，用户输入应该只占有一个token。 比如最终执行sql是select id from user where name=”user_input_name”， 正常请求时 “user_input_name” 会变成一个字符串token。如果碰到恶意请求闭合了双引号，用户输入就至少占用两个token。</p>
 <p>  详细可见官方文档 <a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/50AFAVp8dSwuc1ACY5kRKw">OpenRASP v0.20 发布 | 性能提升与零规则漏洞检测</a>。</p>
