@@ -177,12 +177,12 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">15</span>
+          <span class="site-state-item-count">16</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-tags">
-        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-count">11</span>
         <span class="site-state-item-name">标签</span>
       </div>
   </nav>
@@ -219,6 +219,175 @@
 
 
     <div class="main-inner index posts-expand">
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-03-27-CPython%E7%9A%84%E7%BA%BF%E7%A8%8B%E4%B8%8EGIL/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021-03-27-CPython%E7%9A%84%E7%BA%BF%E7%A8%8B%E4%B8%8EGIL/" class="post-title-link" itemprop="url">CPython的线程与GIL</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2021-03-27 23:58:20" itemprop="dateCreated datePublished" datetime="2021-03-27T23:58:20+08:00">2021-03-27</time>
+    </span>
+      <span class="post-meta-item">
+        <span class="post-meta-item-icon">
+          <i class="far fa-calendar-check"></i>
+        </span>
+        <span class="post-meta-item-text">更新于</span>
+        <time title="修改时间：2021-03-28 00:05:34" itemprop="dateModified" datetime="2021-03-28T00:05:34+08:00">2021-03-28</time>
+      </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>CPython程序的GIL会导致在CPU密集型任务中，多线程并不能提高运算速度。</p>
+<p>比如<a target="_blank" rel="noopener" href="https://gist.github.com/leveryd/55adf1303fa7e528cc446d4e41526604" title="test.py">test.py</a>例子中，从执行test2函数和test1函数时间对比可以看出来，多线程并没有比单线程跑得更快。</p>
+<p>本文主要学习总结GIL、线程和GIL的关系，回答以下问题：</p>
+<ul>
+<li>GIL<ul>
+<li>GIL是什么？</li>
+<li>为什么存在GIL？</li>
+<li>能否去掉GIL，让Python程序应用层加锁来代替GIL的作用？</li>
+</ul>
+</li>
+<li>线程和GIL的关系<ul>
+<li>Python的线程是真线程吗？</li>
+<li>既然GIL能保证只有一个线程在执行字节码，为什么我们用Python多线程时还需要考虑线程安全？</li>
+<li>持有GIL的线程什么时候释放GIL？</li>
+<li>未持有GIL的线程什么时候申请GIL？</li>
+<li>怎么保证两个线程不会同时抢到GIL？</li>
+<li>为什么CPython要保证只有一个线程在执行字节码？</li>
+<li>CPython线程什么时候切换？</li>
+</ul>
+</li>
+</ul>
+<p>分析的CPython是3.8.0版本，commit id是fa919fdf2583bdfead1df00e842f24f30b2a34bf</p>
+<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><h2 id="GIL"><a href="#GIL" class="headerlink" title="GIL"></a>GIL</h2><ol>
+<li><p>GIL是什么？</p>
+<p> CPython的一个全局解释锁。</p>
+</li>
+<li><p>为什么存在GIL？</p>
+<p> <a target="_blank" rel="noopener" href="https://wiki.python.org/moin/GlobalInterpreterLock" title="GIL">GIL</a>文档中写到，GIL可以保证多线程场景中，只有一个线程在执行字节码。</p>
+<p> 这样可以避免确保在CPython源码层面是线程安全的。</p>
+<p> 假设没有了GIL，多线程运行时，引用计数就有可能出现问题。</p>
+</li>
+<li><p>能否去掉GIL，让Python程序应用层加锁来代替？</p>
+<p> 如果python程序多线程全部在消费者代码第一行就加锁，就可以代替GIL。（只是我的推测，没有验证过，结论不一定对。）</p>
+<p> 但是实际编写Python代码时，不可能要求所有的线程都加锁。</p>
+</li>
+</ol>
+<h2 id="线程和GIL"><a href="#线程和GIL" class="headerlink" title="线程和GIL"></a>线程和GIL</h2><ol>
+<li><p>Python的线程是真线程吗？</p>
+<p> 是。Python生成的线程就是操作系统层面的线程，会受操作系统调度。</p>
+</li>
+<li><p>既然GIL能保证只有一个线程在执行字节码，为什么我们用Python多线程时还需要考虑线程安全？</p>
+<p> 因为一行Python代码，可能会包含多个字节码。GIL可以保证字节码执行时是线程安全的，但是无法保证每一行Python代码是线程安全的。</p>
+<p> 可以见参考文章详解。</p>
+</li>
+</ol>
+<ol start="3">
+<li><p>持有GIL的线程什么时候释放GIL？</p>
+<p> 先说结论：如果未持有GIL的线程太久没有获取GIL，已经持有GIL的线程就会释放锁。</p>
+<p> 在ceval.c#1237行中可以看到：ceval-&gt;gil_drop_request 被标记时，会释放锁。</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">main_loop:</span><br><span class="line">    for (;;) &#123;</span><br><span class="line">      ...</span><br><span class="line"></span><br><span class="line">      if (_Py_atomic_load_relaxed(&amp;ceval-&gt;gil_drop_request)) &#123;  &#x2F;&#x2F; 其他线程要求当前线程释放锁</span><br><span class="line">           &#x2F;* Give another thread a chance *&#x2F;</span><br><span class="line">           if (_PyThreadState_Swap(&amp;runtime-&gt;gilstate, NULL) !&#x3D; tstate) &#123;</span><br><span class="line">               Py_FatalError(&quot;ceval: tstate mix-up&quot;);</span><br><span class="line">           &#125;</span><br><span class="line">           drop_gil(ceval, tstate);   &#x2F;&#x2F; 当前线程释放锁</span><br><span class="line"></span><br><span class="line">           &#x2F;* Other threads may run now *&#x2F;</span><br><span class="line"></span><br><span class="line">           take_gil(ceval, tstate);   &#x2F;&#x2F; 当前线程尝试再获取锁</span><br><span class="line"></span><br><span class="line">           ...</span><br><span class="line">       &#125;</span><br></pre></td></tr></table></figure>
+
+<p> eval-&gt;gil_drop_request 什么时候被标记呢？</p>
+<p> 看下面的代码可以得出结论：如果 未持有GIL的线程 超过了等待时间 且 GIL是锁住的状态 且 GIL的持有者没有变更过，就会标记 ceval-&gt;gil_drop_request变量。</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">static void take_gil(PyThreadState *tstate)</span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">    while (_Py_atomic_load_relaxed(&amp;_PyRuntime.ceval.gil.locked)) &#123;  &#x2F;&#x2F; 只要 gil 是锁住的状态, 进入这个循环</span><br><span class="line">        int timed_out &#x3D; 0;</span><br><span class="line">        unsigned long saved_switchnum;</span><br><span class="line"></span><br><span class="line">        saved_switchnum &#x3D; _PyRuntime.ceval.gil.switch_number;   &#x2F;&#x2F; 保存当前持有GIL的身份</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; 释放 gil.mutex, 并在以下两种条件下唤醒</span><br><span class="line">        &#x2F;&#x2F; 1. 等待 INTERVAL 微秒(默认 5000)</span><br><span class="line">        &#x2F;&#x2F; 2. 还没有等待到 5000 微秒但是收到了 gil.cond 的信号</span><br><span class="line"></span><br><span class="line">        COND_TIMED_WAIT(_PyRuntime.ceval.gil.cond, _PyRuntime.ceval.gil.mutex,</span><br><span class="line">                        INTERVAL, timed_out);</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; 如果超过了等待时间 &amp;&amp; GIL是锁住的状态 &amp;&amp; GIL的持有者没有变更过</span><br><span class="line">        if (timed_out &amp;&amp;</span><br><span class="line">            _Py_atomic_load_relaxed(&amp;_PyRuntime.ceval.gil.locked) &amp;&amp;</span><br><span class="line">            _PyRuntime.ceval.gil.switch_number &#x3D;&#x3D; saved_switchnum) &#123;</span><br><span class="line"></span><br><span class="line">            SET_GIL_DROP_REQUEST();  &#x2F;&#x2F; 把 gil_drop_request 值设为 1, 持有GIL的线程看到这个值的时候, 会尝试释放GIL</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p> 所以，当未持有GIL的线程太久没有获取GIL了，就会设置一个全局变量。当前持有GIL的线程看到全局变量后，就知道自己要释放GIL。</p>
+</li>
+<li><p>未持有GIL的线程什么时候申请GIL？</p>
+<p> 先说结论：正在持有GIL的线程释放后，未持有GIL的线程可以获得GIL。</p>
+<p> 申请GIL的代码在Python/ceval_gil.h#take_gil中，可以看到 未持有GIL的线程 通过while循环 来等GIL释放。</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">static void</span><br><span class="line">take_gil(struct _ceval_runtime_state *ceval, PyThreadState *tstate)</span><br><span class="line">&#123;</span><br><span class="line">  ...</span><br><span class="line">  while (_Py_atomic_load_relaxed(&amp;gil-&gt;locked)) &#123; &#x2F;&#x2F; gil 不是锁住状态时跳出循环</span><br><span class="line">      ...</span><br><span class="line">  &#125;</span><br><span class="line">  _ready:</span><br><span class="line">  ...</span><br><span class="line">  &#x2F;* We now hold the GIL *&#x2F;</span><br><span class="line">  _Py_atomic_store_relaxed(&amp;gil-&gt;locked, 1);    &#x2F;&#x2F; 抢到了锁</span><br><span class="line">  _Py_ANNOTATE_RWLOCK_ACQUIRED(&amp;gil-&gt;locked, &#x2F;*is_write&#x3D;*&#x2F;1);</span><br></pre></td></tr></table></figure>
+
+
+</li>
+</ol>
+<pre><code>这里我有一个疑问：上面的代码中，如果多个线程同时跳出while循环，就会出现多个线程同时抢到GIL。
+
+我的疑问肯定是不对的，两个线程肯定不会同时抢到GIL，那是怎么做到的呢？见后面分析</code></pre>
+<ol start="5">
+<li><p>怎么保证两个线程不会同时抢到GIL？</p>
+<p> 在ceval_gil.h#184行代码中，可以看到，用了一个互斥锁。</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">static void</span><br><span class="line">take_gil(struct _ceval_runtime_state *ceval, PyThreadState *tstate)</span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">    struct _gil_runtime_state *gil &#x3D; &amp;ceval-&gt;gil;</span><br><span class="line">    int err &#x3D; errno;</span><br><span class="line">    MUTEX_LOCK(gil-&gt;mutex);   &#x2F;&#x2F; gil-&gt;mutex是互斥锁</span><br><span class="line">    ...</span><br><span class="line">    MUTEX_UNLOCK(gil-&gt;mutex);</span><br></pre></td></tr></table></figure>
+
+<p> 这样在多个线程都调用take_gil来申请GIL时，只有一个线程能够跳出while循环申请到GIL。</p>
+</li>
+</ol>
+<pre><code>现在已经知道了什么时候释放和申请GIL，可以做一个小结：
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">* 已经获得GIL的线程在执行字节码前，如果有其他线程要求释放GIL，它就会释放GIL。</span><br><span class="line">* 没有获得GIL的线程可以分为两种情况：</span><br><span class="line">  * 有一个线程可以要求&quot;已经获得GIL的线程&quot;释放GIL，并且循环等待释放GIL</span><br><span class="line">  * 其他线程在等 gil-&gt;mutex 锁</span><br></pre></td></tr></table></figure></code></pre>
+<ol start="6">
+<li><p>为什么CPython要保证只有一个线程在执行字节码？<br>换句话说，CPython中在执行字节码时，哪一部分不是线程安全的？</p>
+<p> 如果有多线程对同一个变量做修改操作，就不是线程安全的。</p>
+<p> 而在CPython中引用计数的实现就不是线程安全的，为啥呢？</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">from threading import Thread</span><br><span class="line"></span><br><span class="line">n &#x3D; 1</span><br><span class="line"></span><br><span class="line">def CountDown(_):</span><br><span class="line">    print(n)</span><br><span class="line"></span><br><span class="line">def test():</span><br><span class="line">    t1 &#x3D; Thread(target&#x3D;CountDown, args&#x3D;[1])</span><br><span class="line">    t2 &#x3D; Thread(target&#x3D;CountDown, args&#x3D;[1])</span><br><span class="line">    t1.start()</span><br><span class="line">    t2.start()</span><br><span class="line">    t1.join()</span><br><span class="line">    t2.join()</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">if __name__ &#x3D;&#x3D; &quot;__main__&quot;:</span><br><span class="line">    test()</span><br></pre></td></tr></table></figure>
+
+<p> 在上面代码中，CPython在多线程中修改变量n的引用计数时，就会有”多线程对同一个变量做修改操作”，这个变量就是n的引用计数。这里就不是线程安全的，所以要加GIL。</p>
+</li>
+<li><p>CPython线程什么时候切换？</p>
+<p> 上面已经讲了一种切换方式：非持有GIL的线程过了一段时间就可以获得GIL，然后执行opcode。</p>
+<p> 除了这种，在线程等待io、调用sleep函数时，也会主动释放GIL，以便其他线程有机会获得GIL。</p>
+<p> 所以存在切换存在两种方式：主动调度和抢占式调度</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">* 主动调度</span><br><span class="line">    * 等待io</span><br><span class="line">    * sleep</span><br><span class="line">* 抢占式</span><br><span class="line">    * 执行N个opcode （python3.2之前）</span><br><span class="line">    * 过了一段时间之后 （python3.2之后）</span><br></pre></td></tr></table></figure>
+
+
+</li>
+</ol>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://time.geekbang.org/column/article/103834" title="23 | 你真的懂Python GIL（全局解释器锁）吗？">23 | 你真的懂Python GIL（全局解释器锁）吗？</a></p>
+<p><a target="_blank" rel="noopener" href="https://my.oschina.net/u/4419179/blog/4305933" title="Python3 源码阅读-深入了解Python GIL">Python3 源码阅读-深入了解Python GIL</a></p>
+<p><a target="_blank" rel="noopener" href="https://github.com/zpoint/CPython-Internals/blob/master/Interpreter/gil/gil_cn.md" title="gil">gil</a></p>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
 
     
 
@@ -1296,133 +1465,6 @@
 <li>请教公司的老师傅（我们部门的交流学习氛围还是挺不错的）</li>
 <li>正在极客时间上学<a target="_blank" rel="noopener" href="https://time.geekbang.org/column/intro/219">编译原理之美</a>，课程内容深入浅出，评论区里也有各路人马答疑解惑，推荐给大家。</li>
 </ul>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-02-03-Python%E6%A0%88%E6%BA%A2%E5%87%BACVE-2021-3177%E5%88%86%E6%9E%90/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="leveryd">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="leveryd的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2021-02-03-Python%E6%A0%88%E6%BA%A2%E5%87%BACVE-2021-3177%E5%88%86%E6%9E%90/" class="post-title-link" itemprop="url">Python栈溢出CVE-2021-3177分析</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2021-02-03 21:00:28" itemprop="dateCreated datePublished" datetime="2021-02-03T21:00:28+08:00">2021-02-03</time>
-    </span>
-      <span class="post-meta-item">
-        <span class="post-meta-item-icon">
-          <i class="far fa-calendar-check"></i>
-        </span>
-        <span class="post-meta-item-text">更新于</span>
-        <time title="修改时间：2021-02-05 12:15:58" itemprop="dateModified" datetime="2021-02-05T12:15:58+08:00">2021-02-05</time>
-      </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>我正在学习缓冲区溢出，同时又对各个语言的安全问题感兴趣。最近看到 <a target="_blank" rel="noopener" href="https://bugs.python.org/issue42938">Python CVE-2021-3177</a> ，所以分析一下。</p>
-<p>从描述上看，这是一个sprintf函数引发的栈溢出漏洞。</p>
-<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><p>因为本文主要分析的和Python执行流程关系不大，所以也可以忽略第一步调试环境搭建，直接看调试分析。</p>
-<ol>
-<li><p>搭建调试环境</p>
-<p> 我用的IDE是Clion</p>
-<p> 先搭建Python调试环境，编译出可调试的Python二进制程序。这一步可以参考官网 <a target="_blank" rel="noopener" href="https://devguide.python.org/">Guide</a></p>
-<p> 准备好漏洞测试的Python代码</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">from ctypes import *</span><br><span class="line">x &#x3D; c_double.from_param(1e300)</span><br><span class="line"></span><br><span class="line">print(x)</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>调试分析</p>
-<p> 在<code>_ctypes/callproc.c</code>下面代码打好断点</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">...</span><br><span class="line">case &#39;d&#39;:</span><br><span class="line">    sprintf(buffer, &quot;&lt;cparam &#39;%c&#39; (%f)&gt;&quot;,</span><br><span class="line">        self-&gt;tag, self-&gt;value.d);  &#x2F;&#x2F; 1e300</span><br><span class="line">    break;</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
-
-<p> 在IDE中可以看到 self-&gt;value.d 是double类型，且值就是我们传入的参数。</p>
-<p> 从这里可以看出来，这个CVE漏洞和下面这段C代码漏洞是一样的</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line">int main()&#123;</span><br><span class="line">  char buf[2];</span><br><span class="line">  double s&#x3D;1e300;  &#x2F;&#x2F;s值用户可控</span><br><span class="line"></span><br><span class="line">  sprintf(buf, &quot;%f&quot;, s);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p> 所以接下来我就去研究学习上面的C代码中漏洞是怎么利用的。</p>
-</li>
-<li><p>sprintf引起的栈溢出分析</p>
-<p> <a target="_blank" rel="noopener" href="https://book.51cto.com/art/201311/419419.htm">网上文章</a>分析sprintf溢出都以<code>sprintf(buf, &quot;%s&quot;, s);</code>举例</p>
-<p> 对于 “%s” 格式符这种覆盖很容易理解，如果s=”a…a” 很多a字符时，就可以将rip覆盖成”\x6161616161616161”。</p>
-<p> 对于 “%f” 这种用浮点数字去覆盖buf变量，我就有一个疑问，浮点数怎么控制rip指针。比如s=11111111111111112222222233333333.0时，rip会被覆盖成什么？</p>
-<p> 先说自己的结论：</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">在漏洞代码中，double浮点数可以用来向很大内存中写入 &#96;\x30-\x39&#96;、&#96;\x2e&#96; 的字节。</span><br><span class="line"></span><br><span class="line">* 只能写入&#96;\x30-\x39&#96;、&#96;\x2e&#96;，而不能写其他字节，是因为 %f 转换成小数只能有&#96;[0-9.]&#96;，数字1-9对应的十六进制就是 &#96;\x30&#96;-&#96;\x39&#96;</span><br><span class="line">* 能覆盖多大的内存？</span><br><span class="line">    * 因为double类型，表示的小数位数能很大，所以至少可以覆盖300个字节</span><br><span class="line">    * 如果是float类型，就要小的多了</span><br></pre></td></tr></table></figure>
-
-<p> 结论是怎么来的呢？</p>
-<p> 首先我们要知道浮点数在计算机并不总是能够精确的被表示，只能被近似表示。更具体的细节需要去了解”浮点数在计算机中的存储”，可以看文末的参考资料。</p>
-<p> 所以 <code>double s=11111111111111112222222233333333.0</code> 在内存中，s的值并不一定是 <code>11111111111111112222222233333333.0</code></p>
-<p> 我在代码中加了一行<code>printf(&quot;%f\n&quot;,s);</code>打印s变量实际的值。</p>
-<p> 从下面的分析来看，在64位系统上 11111111111111112222222233333333.0 会把rip覆盖成”\x30\x38\x30\x32\x34\x33\x35\x33”。</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line">int main()&#123;</span><br><span class="line">  char buf[2];</span><br><span class="line">  double s&#x3D;11111111111111112222222233333333.0; &#x2F;&#x2F;16个1，8个2，8个3</span><br><span class="line"></span><br><span class="line">  &#x2F;&#x2F; s实际的值是 1111111111111111 19575513 35342080.000000</span><br><span class="line">  &#x2F;&#x2F;            buf栈            rbp      rip</span><br><span class="line">  printf(&quot;%f\n&quot;,s);</span><br><span class="line"></span><br><span class="line">  &#x2F;*</span><br><span class="line"></span><br><span class="line">  print(&quot;&quot;.join([hex(ord(i)).replace(&quot;0x&quot;,&quot;\\x&quot;) for i in &quot;35342080&quot;]))</span><br><span class="line">  &quot;35342080&quot;字符串对应 \x33\x35\x33\x34\x32\x30\x38\x30</span><br><span class="line"></span><br><span class="line">  &gt;&gt;&gt; x&#x3D;[hex(ord(i)).replace(&quot;0x&quot;,&quot;\\x&quot;) for i in &quot;35342080&quot;]</span><br><span class="line">  &gt;&gt;&gt; x.reverse()</span><br><span class="line">  &gt;&gt;&gt; print(&quot;&quot;.join(x))</span><br><span class="line">  \x30\x38\x30\x32\x34\x33\x35\x33</span><br><span class="line"></span><br><span class="line">  *&#x2F;</span><br><span class="line">  &#x2F;&#x2F; 所以rip会被覆盖成 \x30\x38\x30\x32\x34\x33\x35\x33</span><br><span class="line">  &#x2F;&#x2F; gdb验证后，符合预期</span><br><span class="line"></span><br><span class="line">  sprintf(buf, &quot;%f&quot;, s);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-<li><p><code>_ctypes/callproc.c</code>其他代码有没有相同的栈溢出问题？<br> self-&gt;value.d在_ctypes/ctypes.h文件有定义，是一个union数据类型。</p>
-<p> 这个union类型中看着好像还有几个字段也能用在sprintf栈溢出中，如下：</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">union &#123;</span><br><span class="line">    char c;</span><br><span class="line">    char b;</span><br><span class="line">    short h;</span><br><span class="line">    int i;</span><br><span class="line">    long l;</span><br><span class="line">    long long q;</span><br><span class="line">    long double D; &#x2F;&#x2F; 可以利用</span><br><span class="line">    double d;  &#x2F;&#x2F; 可以利用</span><br><span class="line">    float f;  &#x2F;&#x2F; 能覆盖的内存有限</span><br><span class="line">    void *p;  &#x2F;&#x2F; 可能可以</span><br><span class="line">&#125; value;</span><br></pre></td></tr></table></figure>
-
-<p> 在 _ctypes/callproc.c 文件看了看，结论是只有d变量可以利用。</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">union &#123;</span><br><span class="line">    ...</span><br><span class="line">    long double D; &#x2F;&#x2F; 没有用到这个变量</span><br><span class="line">    double d;  &#x2F;&#x2F; 可以利用</span><br><span class="line">    float f;  &#x2F;&#x2F; 能覆盖的内存有限</span><br><span class="line">    void *p;  &#x2F;&#x2F; 因为只用到了 %p 打印地址，没有 %s ，所以也无法利用</span><br><span class="line">&#125; value;</span><br></pre></td></tr></table></figure>
-
-<p> _ctypes/callproc.c文件中，也只有下面的代码sprintf d变量。所以只有这一处是存在栈溢出的。</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">...</span><br><span class="line">case &#39;d&#39;:</span><br><span class="line">    sprintf(buffer, &quot;&lt;cparam &#39;%c&#39; (%f)&gt;&quot;,</span><br><span class="line">        self-&gt;tag, self-&gt;value.d);  &#x2F;&#x2F; 1e300</span><br><span class="line">    break;</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
-
-</li>
-</ol>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>  本文仅仅分析了参数怎么控制rip指针，其中我学习到的点是”浮点数在内存中的表示”。</p>
-<p>  关于漏洞还有其他很多方面都没有分析，比如：</p>
-<ul>
-<li>怎么自动化检测这种漏洞？</li>
-<li>漏洞的实际影响是什么？<ul>
-<li>有多少Python应用存在漏洞？</li>
-</ul>
-</li>
-<li>漏洞触发的调用链是什么？</li>
-</ul>
-<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><p><a target="_blank" rel="noopener" href="http://c.biancheng.net/cpp/html/3095.html">C语言float、double的内存表示</a></p>
 
       
     </div>
