@@ -259,7 +259,7 @@
           <i class="far fa-calendar-check"></i>
         </span>
         <span class="post-meta-item-text">更新于</span>
-        <time title="修改时间：2021-03-28 12:13:14" itemprop="dateModified" datetime="2021-03-28T12:13:14+08:00">2021-03-28</time>
+        <time title="修改时间：2021-03-29 12:50:06" itemprop="dateModified" datetime="2021-03-29T12:50:06+08:00">2021-03-29</time>
       </span>
 
   
@@ -305,15 +305,22 @@
 </li>
 <li><p>能否去掉GIL，让Python程序应用层加锁来代替？</p>
 <p> 如果python程序多线程全部在消费者代码第一行就加锁，就可以代替GIL。（只是我的推测，没有验证过，结论不一定对。）</p>
-<p> 但是实际编写Python代码时，不可能要求所有的线程都加锁。</p>
+<p> 但是实际编写Python代码时，不可能要求所有的线程都加锁。如下的代码中，单线程和多线程也就没有区别了。</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">lock &#x3D; threading.Lock()</span><br><span class="line"></span><br><span class="line">class Worker2(threading.Thread):</span><br><span class="line">  def run(self):</span><br><span class="line">    with lock:</span><br><span class="line">      ....</span><br></pre></td></tr></table></figure>
+
 </li>
 </ol>
 <h2 id="线程和GIL"><a href="#线程和GIL" class="headerlink" title="线程和GIL"></a>线程和GIL</h2><ol>
 <li><p>Python的线程是真线程吗？</p>
-<p> 是。Python生成的线程就是操作系统层面的线程，会受操作系统调度。</p>
+<p> Unix/Linux上的Python线程是真线程（Windows平台的不清楚）。是操作系统层面的线程，会受操作系统调度。</p>
+<p> 在Python/thread_pthread.h文件中，可以看到调用pthread_create函数创建系统线程。</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">unsigned long</span><br><span class="line">PyThread_start_new_thread(void (*func)(void *), void *arg)</span><br><span class="line">&#123;</span><br><span class="line">    pthread_t th;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    status &#x3D; pthread_create(&amp;th,   &#x2F;&#x2F; 调用pthread_create函数创建系统线程</span><br><span class="line">      ...</span><br></pre></td></tr></table></figure>
 </li>
 <li><p>既然GIL能保证只有一个线程在执行字节码，为什么我们用Python多线程时还需要考虑线程安全？</p>
 <p> 因为一行Python代码，可能会包含多个字节码。GIL可以保证字节码执行时是线程安全的，但是无法保证每一行Python代码是线程安全的。</p>
+<p> 比如 n=n+1 一行代码，会被解释成多个字节码</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&gt;&gt;&gt; import dis</span><br><span class="line">&gt;&gt;&gt; dis.dis(&quot;n&#x3D;n+1&quot;)</span><br><span class="line">  1           0 LOAD_NAME                0 (n)</span><br><span class="line">              2 LOAD_CONST               0 (1)</span><br><span class="line">              4 BINARY_ADD</span><br><span class="line">              6 STORE_NAME               0 (n)</span><br><span class="line">              8 LOAD_CONST               1 (None)</span><br><span class="line">             10 RETURN_VALUE</span><br></pre></td></tr></table></figure>
+
 <p> 可以见参考文章详解。</p>
 </li>
 </ol>
@@ -354,11 +361,11 @@
 <ol start="6">
 <li><p>为什么CPython要保证只有一个线程在执行字节码？</p>
 <p> 换句话说，CPython中在执行字节码时，哪一部分不是线程安全的？</p>
-<p> 如果有多线程对同一个变量做修改操作，就不是线程安全的。</p>
-<p> 而在CPython中引用计数的实现就不是线程安全的，为啥呢？</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">from threading import Thread</span><br><span class="line"></span><br><span class="line">n &#x3D; 1</span><br><span class="line"></span><br><span class="line">def CountDown(_):</span><br><span class="line">    print(n)</span><br><span class="line"></span><br><span class="line">def test():</span><br><span class="line">    t1 &#x3D; Thread(target&#x3D;CountDown, args&#x3D;[1])</span><br><span class="line">    t2 &#x3D; Thread(target&#x3D;CountDown, args&#x3D;[1])</span><br><span class="line">    t1.start()</span><br><span class="line">    t2.start()</span><br><span class="line">    t1.join()</span><br><span class="line">    t2.join()</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">if __name__ &#x3D;&#x3D; &quot;__main__&quot;:</span><br><span class="line">    test()</span><br></pre></td></tr></table></figure>
-
-<p> 在上面代码中，CPython在多线程中修改变量n的引用计数时，就会有”多线程对同一个变量做修改操作”，这个变量就是n的引用计数。这里就不是线程安全的，所以要加GIL。</p>
+<p> 在CPython中引用计数的实现就不是线程安全的，为啥呢？</p>
+<p> 首先需要理解一个知识点：如果多线程场景中线程中的操作全部都是读操作，是线程安全的；如果多线程场景中线程中对同一个变量做修改操作，就不是线程安全的。</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">from threading import Thread</span><br><span class="line"></span><br><span class="line">n &#x3D; 1</span><br><span class="line"></span><br><span class="line">def CountDown(_):</span><br><span class="line">    print(n)  # 仅仅是打印n，是线程安全的</span><br><span class="line">    # n +&#x3D; 1    # 修改n的值，这里是非线程安全</span><br><span class="line"></span><br><span class="line">def test():</span><br><span class="line">    t1 &#x3D; Thread(target&#x3D;CountDown, args&#x3D;[1])</span><br><span class="line">    t2 &#x3D; Thread(target&#x3D;CountDown, args&#x3D;[1])</span><br><span class="line">    t1.start()</span><br><span class="line">    t2.start()</span><br><span class="line">    t1.join()</span><br><span class="line">    t2.join()</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">if __name__ &#x3D;&#x3D; &quot;__main__&quot;:</span><br><span class="line">    test()</span><br></pre></td></tr></table></figure>
+<p> 从写Python脚本的角度看：上面的Python代码中，我们不加锁是没有问题的。</p>
+<p> 从CPython角度看：在上面代码中，CPython在多线程中修改变量n的引用计数时，就会有”多线程对同一个变量做修改操作”，这个变量就是n的引用计数。这里就不是线程安全的，所以要加GIL。加了GIL后，只会有一个线程在修改n的引用计数。</p>
 </li>
 <li><p>CPython线程什么时候切换？</p>
 <p> 上面已经讲了一种切换方式：非持有GIL的线程过了一段时间就可以获得GIL，然后执行opcode。</p>
