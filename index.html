@@ -177,12 +177,12 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">16</span>
+          <span class="site-state-item-count">17</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-tags">
-        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-count">12</span>
         <span class="site-state-item-name">标签</span>
       </div>
   </nav>
@@ -219,6 +219,130 @@
 
 
     <div class="main-inner index posts-expand">
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-04-17-%E9%AA%8C%E8%AF%81%E6%98%AF%E5%90%A6%E5%AD%98%E5%9C%A8%E5%86%99%E6%96%87%E4%BB%B6%E6%BC%8F%E6%B4%9E%E5%B0%8F%E6%8A%80%E5%B7%A7/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021-04-17-%E9%AA%8C%E8%AF%81%E6%98%AF%E5%90%A6%E5%AD%98%E5%9C%A8%E5%86%99%E6%96%87%E4%BB%B6%E6%BC%8F%E6%B4%9E%E5%B0%8F%E6%8A%80%E5%B7%A7/" class="post-title-link" itemprop="url">验证是否存在写文件漏洞小技巧</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2021-04-17 23:37:20 / 修改时间：23:38:24" itemprop="dateCreated datePublished" datetime="2021-04-17T23:37:20+08:00">2021-04-17</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>在安全黑盒测试时遇到一个疑似能写任意文件的漏洞点，想要验证漏洞是否存在。</p>
+<p>这里就猜测后端代码可能如下：存在可能的任意写文件漏洞，可写的内容部分可控、服务权限未知</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">content &#x3D; &quot;something start&quot; + &quot;用户可控的内容&quot; + &quot;something end&quot;</span><br><span class="line">f &#x3D; open(&quot;用户指定的文件路径&quot;, &quot;w&quot;)</span><br><span class="line">f.write(content)</span><br></pre></td></tr></table></figure>
+
+<p>最开始用”写入ping dnslog命令到crontab”来验证写文件漏洞是否存在，不过验证失败了，可能因为下面两个原因：</p>
+<ul>
+<li>目标机器没启动cron服务</li>
+<li>服务身份可能不是root，没有权限写 /var/spool/cron目录和/etc/crontab</li>
+</ul>
+<p>也可以写内容到 .bashrc、web路径、常用文件（比如bash、ping等），但这些方式都有一点限制：</p>
+<ul>
+<li>/root/.bashrc因为服务身份不一定是root，所以可能写入失败</li>
+<li>.bashrc需要登陆到机器才能触发</li>
+<li>web路径位置未知</li>
+<li>写常用文件(比如bash、ping等)可能影响目标系统的稳定性，并且需要等待目标操作才能触发</li>
+</ul>
+<p>我这里只想要快速验证”写文件漏洞”是否存在，确认存在后，再来尝试上述或者别的方法来做漏洞利用。</p>
+<p>为了验证”写文件漏洞”是否存在，我的思路是 能不能找到一个特殊文件，写内容到此文件会造成延时或者产生dnslog。</p>
+<p>我能想到的特殊文件包括：</p>
+<ul>
+<li>管道文件</li>
+<li>/dev/tcp/{host}/{ip}</li>
+<li>socket文件</li>
+<li>标准描述符  (/proc/self/fd/0、/proc/self/fd/1)</li>
+</ul>
+<p>下面就是验证这些文件，哪个符合需求</p>
+<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><ul>
+<li><p>管道文件</p>
+<p>思路：找到系统上默认的管道文件，并且验证写入文件是否阻塞</p>
+<ol>
+<li><p>找出系统默认的管道文件</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">find &#x2F; -type p</span><br></pre></td></tr></table></figure>
+
+<p> 可以看到CentOS 7.9系统默认存在一些管道文件</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;run&#x2F;dmeventd-client</span><br><span class="line">&#x2F;run&#x2F;dmeventd-server</span><br><span class="line">&#x2F;run&#x2F;systemd&#x2F;ask-password-block&#x2F;136:4</span><br><span class="line">&#x2F;run&#x2F;systemd&#x2F;sessions&#x2F;1.ref</span><br><span class="line">&#x2F;run&#x2F;systemd&#x2F;initctl&#x2F;fifo</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>验证上面的管道文件，有一个可以利用</p>
+<p> <code>echo 1 &gt; /run/systemd/ask-password-block/136:4</code>  会阻塞</p>
+<p> 这个文件在其他系统文件名略微有点不同，并且只有root用户可以读写</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">另一个CentOS7.9: &#x2F;run&#x2F;systemd&#x2F;ask-password-block&#x2F;136:0</span><br><span class="line">ubuntu：&#x2F;run&#x2F;systemd&#x2F;ask-password-block&#x2F;136:2</span><br></pre></td></tr></table></figure>
+
+</li>
+</ol>
+<p>小结：可以用 /run/systemd/ask-password-block/136:{id} 文件来探测是否存在文件写漏洞，前提是服务有root权限</p>
+</li>
+</ul>
+<ul>
+<li><p>/dev/tcp/{host}/{ip}</p>
+<p>在bash反弹shell中会用到这个。</p>
+<p>它不是文件，只是bash解释器会对/dev/tcp对特殊处理，代表了一个tcp socket。</p>
+<p>所以它不满足需求。</p>
+</li>
+<li><p>socket文件</p>
+<p>操作socket文件不是open、write、close这一套流程，所以肯定不行。</p>
+</li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ul>
+<li>可以用 /run/systemd/ask-password-block/136:{id} 文件来探测是否存在文件写漏洞，前提是服务有root权限。</li>
+</ul>
+<p>最后，感谢和我讨论这个小问题的朋友。</p>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
 
     
 
@@ -1349,130 +1473,6 @@
 <li>检测到反弹shell后不会立马告警：厂商会检测shell是否执行命令，如果仅仅反弹shell但是没有执行命令就不会被拦截</li>
 </ul>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Reverse%20Shell%20Cheatsheet.md">Reverse Shell Cheat Sheet</a><br><a target="_blank" rel="noopener" href="https://www.freebuf.com/articles/network/263684.html">云上威胁检测 | 详解反弹shell多维检测技术</a></p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-02-12-2021%E5%B9%B4%E7%9A%84%E5%AD%A6%E4%B9%A0%E8%AE%A1%E5%88%92/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="leveryd">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="leveryd的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2021-02-12-2021%E5%B9%B4%E7%9A%84%E5%AD%A6%E4%B9%A0%E8%AE%A1%E5%88%92/" class="post-title-link" itemprop="url">2021年我的学习计划</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-      
-
-      <time title="创建时间：2021-02-12 17:05:14 / 修改时间：22:54:07" itemprop="dateCreated datePublished" datetime="2021-02-12T17:05:14+08:00">2021-02-12</time>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <h1 id="学习方向"><a href="#学习方向" class="headerlink" title="学习方向"></a>学习方向</h1><p>2021年给自己定了一些学习内容，包括：</p>
-<ul>
-<li>补专业课程<ul>
-<li>编译原理   【优先级高】</li>
-<li>计算机操作系统 【优先级高】</li>
-<li>网络编程   【优先级中】</li>
-<li>设计模式   【优先级低】</li>
-<li>计算机组成原理 【优先级低】</li>
-<li>数据结构和算法 【优先级低】</li>
-</ul>
-</li>
-<li>深入学习一门语言<ul>
-<li>Python 或者 Golang</li>
-</ul>
-</li>
-</ul>
-<p>上面我根据自己的需要标注了学习的优先级。在2020年底已经学习了其中一部分。</p>
-<h1 id="为啥想着学这些呢？"><a href="#为啥想着学这些呢？" class="headerlink" title="为啥想着学这些呢？"></a>为啥想着学这些呢？</h1><p>在之前的工作中，我主要关注下面这些，包括</p>
-<ul>
-<li>安全产品<ul>
-<li>白盒扫描</li>
-<li>黑盒扫描</li>
-<li>WAF</li>
-<li>HIDS</li>
-</ul>
-</li>
-<li>安全研究<ul>
-<li>容器</li>
-<li>Web</li>
-<li>二进制</li>
-</ul>
-</li>
-<li>安全建设<ul>
-<li>SDL</li>
-</ul>
-</li>
-</ul>
-<p>这些方向或浅或深地都和专业课程内容相关。比如说：</p>
-<ul>
-<li><p>开发中用的很多库背后有编译原理的知识点。比如搞Web安全的都知道FastJSON RCE漏洞，FastJSON做序列化时也会对输入字符串做词法分析。在分析FastJSON漏洞时如果清楚词法分析的概念和状态机实现，就可能不会迷失在代码细节中。词法分析就是编译原理前端部分的一小块内容。</p>
-</li>
-<li><p>WAF中SQL注入检测可以基于SQL语义分析，理论上效果比正则写的防护规则好很多，而语义分析就属于编译原理中前端部分的一块内容。</p>
-</li>
-<li><p>学习二进制安全时，栈溢出和可执行文件的内存分布、函数调用过程等知识点非常相关，整型溢出和数字在计算机中的存储方式等知识点有关。这些知识点都在操作系统有讲到。</p>
-</li>
-<li><p>之前在做开发工作时也会有不少需要操作系统知识的地方。比方说使用Python时因为GIL的存在，所以线程并不是同时运行，但是为啥线程在IO密集型应用中能够提高运行速度呢？这就涉及到Python实现和操作系统线程调度的知识。</p>
-</li>
-<li><p>之前在研究云安全时遇到过一个case，就是容器内用户身份已经是root但是无法做arp欺骗攻击其他同网段同宿主机的容器。这个case的原因和网络知识的raw_socket有些关系。</p>
-</li>
-<li><p>之前在做开发时对Python2.7的gevent monkey补丁工作原理有疑问。虽然网络上有很多的文章分析，但是自己总是看得不是很明白。我想原因是这一块涉及到的”阻塞与非阻塞、同步与非同步、多路复用”等知识点是需要花时间成体系理解的。这些知识点在网络编程中会有详细说明。</p>
-</li>
-</ul>
-<p>在工作中，很常用的学习方法是遇到啥就去查，边查边学。这样的学习方式好处是学习动力足、能快速解决问题，坏处是有时候这种学习方法不灵，比方说学习语义分析时，就必须要把词法分析、语法分析先学了，这其中需要花费的时间和精力还是不少的。如果靠自己在网上搜索的零零散散的知识点学习，效率就太低了。</p>
-<p>总的来说，这一部分知识和工作的关联程度很高，且不太适合边查边学，所以需要系统地学习。</p>
-<p>事实上，我觉得《编译原理》和《计算机操作系统》两门课太重要了，没学过且有一些需求驱动的读者，都可以看一看，不会亏。指不定就能花20%的时间掌握其中80%的内容，解决工作中的技术难题呢。</p>
-<h1 id="怎么学这些呢？"><a href="#怎么学这些呢？" class="headerlink" title="怎么学这些呢？"></a>怎么学这些呢？</h1><p>除了经典书籍，还有一些方式、资源，比如：</p>
-<ul>
-<li>请教公司的老师傅（我们部门的交流学习氛围还是挺不错的）</li>
-<li>正在极客时间上学<a target="_blank" rel="noopener" href="https://time.geekbang.org/column/intro/219">编译原理之美</a>，课程内容深入浅出，评论区里也有各路人马答疑解惑，推荐给大家。</li>
-</ul>
 
       
     </div>
