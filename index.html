@@ -177,7 +177,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">24</span>
+          <span class="site-state-item-count">25</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -219,6 +219,101 @@
 
 
     <div class="main-inner index posts-expand">
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-07-01-%E6%8F%90%E9%AB%98%E6%BC%8F%E6%B4%9E%E9%AA%8C%E8%AF%81%E6%95%88%E7%8E%87%E7%9A%84%E5%B7%A5%E5%85%B7/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021-07-01-%E6%8F%90%E9%AB%98%E6%BC%8F%E6%B4%9E%E9%AA%8C%E8%AF%81%E6%95%88%E7%8E%87%E7%9A%84%E5%B7%A5%E5%85%B7/" class="post-title-link" itemprop="url">提高漏洞验证效率的工具</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2021-07-01 09:58:57 / 修改时间：09:59:34" itemprop="dateCreated datePublished" datetime="2021-07-01T09:58:57+08:00">2021-07-01</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>某个xss漏洞点如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;script&gt;</span><br><span class="line">x&#x3D;document.createElement(&quot;script&quot;);</span><br><span class="line">x.setAttribute(&quot;src&quot;, &quot;用户可控的地址&quot;);</span><br><span class="line">document.body.appendChild(x);</span><br><span class="line">&lt;&#x2F;script&gt;</span><br></pre></td></tr></table></figure>
+
+<p>虽然xss漏洞肯定是存在的，但是我不知道利用起来是不是会有问题，比如碰到csp等。</p>
+<p>所以我在”用户可控地址” 填入 “<a target="_blank" rel="noopener" href="http://x.x.x.x/1.js&quot;">http://x.x.x.x/1.js&quot;</a> 来验证，于是出现了点问题。</p>
+<p>第一个问题：https站点引入http静态资源时，浏览器控制台出现”混合内容”警告。似乎会影响js解析</p>
+<p>第二个问题：响应头的content-type需要是text/javascript，否则不能当作js解析</p>
+<p>所以我需要一个web服务：</p>
+<ul>
+<li>支持https</li>
+<li>返回内容可以自定义</li>
+<li>响应头content-type可以自定义</li>
+<li>支持公网访问</li>
+</ul>
+<p>自己去搭这样一个服务也不难，但是如果有现成的岂不是更好，省时省力。</p>
+<p>根据历史经验，我知道有两种平台似乎可以解决我的这个小需求：</p>
+<ul>
+<li>类似 pastebin 的平台，可以通过短链接访问</li>
+<li>xss平台</li>
+</ul>
+<h1 id="测试这些平台是否好用"><a href="#测试这些平台是否好用" class="headerlink" title="测试这些平台是否好用"></a>测试这些平台是否好用</h1><p><a target="_blank" rel="noopener" href="http://ix.io/">http://ix.io</a> : 不支持https</p>
+<p><a target="_blank" rel="noopener" href="http://pastebin.com/">http://pastebin.com</a>: 不支持设置content-type</p>
+<p>搜索到的很多xss平台，都需要邀请码。甚至有的注册成功了，但是使用起来有问题。</p>
+<p>再比如 xssye.com 这个xss平台我很久以前用过。今天登陆提示账号密码登陆不上，申请密码找回提示邮箱和账号对不上，重新注册又提示”需要注册邀请码”。</p>
+<p>总之试了几个，感觉用着比较难受。这些xss平台看前段页面似乎都是一套代码，也不确定是否可能存在漏洞。</p>
+<h1 id="有没有稳定好用的服务"><a href="#有没有稳定好用的服务" class="headerlink" title="有没有稳定好用的服务"></a>有没有稳定好用的服务</h1><p>想起来云上的文件存储服务，刚好是满足我自己的需求的。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">➜  ~ curl https:&#x2F;&#x2F;webbackup-3knjfg4bxz.bj.bcebos.com&#x2F;1.js</span><br><span class="line">alert(1);</span><br></pre></td></tr></table></figure>
+
+<p>另外云上的函数服务，还可以写代码对响应做更精细的控制。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>云上的 文件存储、函数服务 等很适合快速在公网提供https服务，而且相对于个人自己搭建的服务要稳定省心得多，推荐使用。</p>
+<p>当然云上也有很坑的服务，就不说了。</p>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
 
     
 
@@ -1610,144 +1705,6 @@
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://time.geekbang.org/column/article/103834" title="23 | 你真的懂Python GIL（全局解释器锁）吗？">23 | 你真的懂Python GIL（全局解释器锁）吗？</a></p>
 <p><a target="_blank" rel="noopener" href="https://my.oschina.net/u/4419179/blog/4305933" title="Python3 源码阅读-深入了解Python GIL">Python3 源码阅读-深入了解Python GIL</a></p>
 <p><a target="_blank" rel="noopener" href="https://github.com/zpoint/CPython-Internals/blob/master/Interpreter/gil/gil_cn.md" title="gil">gil</a></p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-03-21-%E7%BB%86%E5%93%81%E6%9F%90%E8%AF%AD%E4%B9%89waf%E7%9A%84xss%E9%98%B2%E6%8A%A4(4)/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="leveryd">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="leveryd的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2021-03-21-%E7%BB%86%E5%93%81%E6%9F%90%E8%AF%AD%E4%B9%89waf%E7%9A%84xss%E9%98%B2%E6%8A%A4(4)/" class="post-title-link" itemprop="url">细品某语义waf的xss防护(4)</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-      
-
-      <time title="创建时间：2021-03-21 20:44:10 / 修改时间：21:35:34" itemprop="dateCreated datePublished" datetime="2021-03-21T20:44:10+08:00">2021-03-21</time>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>假设攻击场景如下</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">漏洞输出位置在JS环境中，如下面3种场景</span><br><span class="line"></span><br><span class="line">&lt;script&gt;</span><br><span class="line">  var a&#x3D;&quot;用户输出可控位置&quot;;   &#x2F;&#x2F; 1</span><br><span class="line"></span><br><span class="line">  func(&quot;用户输出可控位置&quot;);   &#x2F;&#x2F; 2</span><br><span class="line"></span><br><span class="line">  eval(&quot;用户输出可控位置&quot;);   &#x2F;&#x2F; 3</span><br><span class="line"></span><br><span class="line">&lt;&#x2F;script&gt;</span><br></pre></td></tr></table></figure>
-
-<p>在这个场景下，验证厂商的安全防护策略</p>
-<p>分析思路</p>
-<ul>
-<li>判断支持哪几种引号的闭合</li>
-<li>对每类攻击场景单独测试，根据拦截情况推测安全防护策略</li>
-</ul>
-<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><h2 id="判断支持哪几种引号的闭合"><a href="#判断支持哪几种引号的闭合" class="headerlink" title="判断支持哪几种引号的闭合"></a>判断支持哪几种引号的闭合</h2><p>现代的Javascript支持三种方式表示字符串</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">var a&#x3D;&#39;xx&#39;</span><br><span class="line">var a&#x3D;&quot;xx&quot;</span><br><span class="line">var a&#x3D;&#96;xx&#96;</span><br></pre></td></tr></table></figure>
-<p>因此同一个攻击场景会因为字符串写法细分成三类。</p>
-<p>测试payload是否被拦截</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&#96;-alert(1)-&#96;   没有拦截     说明不支持拦截 var a&#x3D;&#96;&#96;-alert(1)-&#96;&#96;;  这种攻击</span><br><span class="line">&quot;-alert(1)-&quot;   拦截</span><br><span class="line">&#39;-alert(1)-&#39;   拦截</span><br></pre></td></tr></table></figure>
-
-<p>小结：</p>
-<ul>
-<li><p>支持单引号、双引号，不支持反引号</p>
-</li>
-<li><p>不支持防护下面的攻击场景</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">var a&#x3D;&#96;用户输出可控位置&#96;;</span><br><span class="line">func(&#96;用户输出可控位置&#96;);</span><br><span class="line">eval(&#96;用户输出可控位置&#96;);</span><br></pre></td></tr></table></figure>
-
-</li>
-</ul>
-<h2 id="单独测试"><a href="#单独测试" class="headerlink" title="单独测试"></a>单独测试</h2><ul>
-<li><p>var a=”用户输出可控位置”;</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&quot;;xxx.alert(1);&#x2F;&#x2F;   拦截</span><br><span class="line">&quot;;xxx.xxalert(1);&#x2F;&#x2F;  不拦截</span><br></pre></td></tr></table></figure>
-
-<p>小结：</p>
-<ul>
-<li>解析js &amp;&amp; 存在”对象.函数()”形式或者”函数()”函数形式的函数调用 &amp;&amp; 函数名在黑名单中 则拦截</li>
-</ul>
-</li>
-<li><p>eval(‘用户输出可控位置’);</p>
-<p>漏洞利用时，如果不闭合引号</p>
-  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">self[&quot;xxxx&quot;](1)    拦截</span><br><span class="line">selxfxx[&quot;alert&quot;](1)  不拦截</span><br><span class="line">selfxx[&quot;alert&quot;](1)  拦截</span><br><span class="line">self.xxx(1)    不拦截</span><br><span class="line"></span><br><span class="line">说明安全策略可能是：函数调用 &amp;&amp; 形式为&quot;对象[属性]()&quot; &amp;&amp; 对象名在黑名单中 (前缀匹配)</span><br></pre></td></tr></table></figure>
-
-<p>漏洞利用时，如果闭合引号，就和<code>func(&#39;用户输出可控位置&#39;)</code>攻击场景一样了</p>
-<p>小结：</p>
-<ul>
-<li>解析js &amp;&amp; 存在”对象.函数()”形式或者”函数()”函数形式的函数调用 &amp;&amp; 函数名是否在黑名单中   则拦截   (之前测试<code>&lt;svg/onload=&quot;用户输出点&quot;&gt;</code>场景得出结论，在这里也适用)</li>
-<li>解析js &amp;&amp; 函数调用 &amp;&amp; 形式为<code>对象[属性]()</code> &amp;&amp; 对象名在黑名单中 (前缀匹配)   则拦截</li>
-</ul>
-</li>
-</ul>
-<ul>
-<li><p>func(‘用户输出可控位置’);</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">a&#x3D;&#39;-alert(1)&#x2F;&#x2F;   拦截</span><br><span class="line">a&#x3D;&#39;-alert(1)-   拦截</span><br></pre></td></tr></table></figure>
-
-<p>小结： 解析js &amp;&amp; 存在”对象.函数()”形式或者”函数()”函数形式的函数调用 &amp;&amp; 函数名在黑名单中  则拦截</p>
-</li>
-</ul>
-<h2 id="不能解释的奇怪现象"><a href="#不能解释的奇怪现象" class="headerlink" title="不能解释的奇怪现象"></a>不能解释的奇怪现象</h2><ul>
-<li><p>测试过程中 <code>&quot;;alert(&#39;)</code> payload 被拦截</p>
-<p>按照我的经验，<code>&quot;;alert(&#39;)</code> payload无论对应到哪一类攻击场景都不会是正确的js语法，因此不应该被语义waf拦截。</p>
-<p>虽然 “;alert(‘)  payload在下面场景下可以弹框</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&lt;script&gt;</span><br><span class="line">var a&#x3D;&quot;用户输出&#39;);   &#x2F;&#x2F; var a&#x3D;&quot;&quot;;alert(&#39;)&#39;);</span><br><span class="line">&lt;&#x2F;script&gt;</span><br></pre></td></tr></table></figure>
-
-<p>但是几乎不可能有开发写出上面的代码。</p>
-<p>所以，有两个问题：</p>
-<ol>
-<li>这个payload是否有对应的漏洞场景？</li>
-<li>如果有对应的漏洞场景，对应的漏洞代码会长什么样？</li>
-</ol>
-</li>
-</ul>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ul>
-<li>可能的安全策略：<ul>
-<li>解析js &amp;&amp; 存在”对象.函数()”形式或者”函数()”函数形式的函数调用 &amp;&amp; 函数名在黑名单中  则拦截</li>
-<li>解析js &amp;&amp; 函数调用 &amp;&amp; 形式为<code>对象[属性]()</code> &amp;&amp; 对象名在黑名单中 (前缀匹配)   则拦截</li>
-</ul>
-</li>
-<li>有一些payload被拦截的原因目前无法解释</li>
-</ul>
 
       
     </div>

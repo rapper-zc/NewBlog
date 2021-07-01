@@ -23,21 +23,21 @@
     var NexT = window.NexT || {};
     var CONFIG = {"hostname":"yoursite.com","root":"/","images":"/images","scheme":"Pisces","version":"8.1.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}};
   </script>
-<meta name="description" content="学习方向2021年给自己定了一些学习内容，包括：  补专业课程 编译原理   【优先级高】 计算机操作系统 【优先级高】 网络编程   【优先级中】 设计模式   【优先级低】 计算机组成原理 【优先级低】 数据结构和算法 【优先级低】   深入学习一门语言 Python 或者 Golang    上面我根据自己的需要标注了学习的优先级。在2020年底已经学习了其中一部分。 为啥想着学这些呢？在之">
+<meta name="description" content="问题背景某个xss漏洞点如下： 12345&lt;script&gt;x&#x3D;document.createElement(&quot;script&quot;);x.setAttribute(&quot;src&quot;, &quot;用户可控的地址&quot;);document.body.appendChild(x);&lt;&#x2F;script&gt;  虽然xss漏洞肯定是存">
 <meta property="og:type" content="article">
-<meta property="og:title" content="2021年我的学习计划">
-<meta property="og:url" content="http://yoursite.com/2021-02-12-2021%E5%B9%B4%E7%9A%84%E5%AD%A6%E4%B9%A0%E8%AE%A1%E5%88%92/index.html">
+<meta property="og:title" content="提高漏洞验证效率的工具">
+<meta property="og:url" content="http://yoursite.com/2021-07-01-%E6%8F%90%E9%AB%98%E6%BC%8F%E6%B4%9E%E9%AA%8C%E8%AF%81%E6%95%88%E7%8E%87%E7%9A%84%E5%B7%A5%E5%85%B7/index.html">
 <meta property="og:site_name" content="leveryd的个人博客">
-<meta property="og:description" content="学习方向2021年给自己定了一些学习内容，包括：  补专业课程 编译原理   【优先级高】 计算机操作系统 【优先级高】 网络编程   【优先级中】 设计模式   【优先级低】 计算机组成原理 【优先级低】 数据结构和算法 【优先级低】   深入学习一门语言 Python 或者 Golang    上面我根据自己的需要标注了学习的优先级。在2020年底已经学习了其中一部分。 为啥想着学这些呢？在之">
+<meta property="og:description" content="问题背景某个xss漏洞点如下： 12345&lt;script&gt;x&#x3D;document.createElement(&quot;script&quot;);x.setAttribute(&quot;src&quot;, &quot;用户可控的地址&quot;);document.body.appendChild(x);&lt;&#x2F;script&gt;  虽然xss漏洞肯定是存">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2021-02-12T09:05:14.118Z">
-<meta property="article:modified_time" content="2021-02-12T14:54:07.809Z">
+<meta property="article:published_time" content="2021-07-01T01:58:57.475Z">
+<meta property="article:modified_time" content="2021-07-01T01:59:34.756Z">
 <meta property="article:author" content="leveryd">
-<meta property="article:tag" content="安全研究">
+<meta property="article:tag" content="安全测试">
 <meta name="twitter:card" content="summary">
 
 
-<link rel="canonical" href="http://yoursite.com/2021-02-12-2021%E5%B9%B4%E7%9A%84%E5%AD%A6%E4%B9%A0%E8%AE%A1%E5%88%92/">
+<link rel="canonical" href="http://yoursite.com/2021-07-01-%E6%8F%90%E9%AB%98%E6%BC%8F%E6%B4%9E%E9%AA%8C%E8%AF%81%E6%95%88%E7%8E%87%E7%9A%84%E5%B7%A5%E5%85%B7/">
 
 
 <script class="page-configurations">
@@ -49,7 +49,7 @@
     lang   : 'zh-CN'
   };
 </script>
-<title>2021年我的学习计划 | leveryd的个人博客</title>
+<title>提高漏洞验证效率的工具 | leveryd的个人博客</title>
   
 
 
@@ -169,7 +169,7 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <section class="post-toc-wrap sidebar-panel">
-            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AD%A6%E4%B9%A0%E6%96%B9%E5%90%91"><span class="nav-number">1.</span> <span class="nav-text">学习方向</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%BA%E5%95%A5%E6%83%B3%E7%9D%80%E5%AD%A6%E8%BF%99%E4%BA%9B%E5%91%A2%EF%BC%9F"><span class="nav-number">2.</span> <span class="nav-text">为啥想着学这些呢？</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%8E%E4%B9%88%E5%AD%A6%E8%BF%99%E4%BA%9B%E5%91%A2%EF%BC%9F"><span class="nav-number">3.</span> <span class="nav-text">怎么学这些呢？</span></a></li></ol></div>
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E8%83%8C%E6%99%AF"><span class="nav-number">1.</span> <span class="nav-text">问题背景</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E8%BF%99%E4%BA%9B%E5%B9%B3%E5%8F%B0%E6%98%AF%E5%90%A6%E5%A5%BD%E7%94%A8"><span class="nav-number">2.</span> <span class="nav-text">测试这些平台是否好用</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%9C%89%E6%B2%A1%E6%9C%89%E7%A8%B3%E5%AE%9A%E5%A5%BD%E7%94%A8%E7%9A%84%E6%9C%8D%E5%8A%A1"><span class="nav-number">3.</span> <span class="nav-text">有没有稳定好用的服务</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">4.</span> <span class="nav-text">总结</span></a></li></ol></div>
         </section>
         <!--/noindex-->
 
@@ -235,7 +235,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-02-12-2021%E5%B9%B4%E7%9A%84%E5%AD%A6%E4%B9%A0%E8%AE%A1%E5%88%92/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-07-01-%E6%8F%90%E9%AB%98%E6%BC%8F%E6%B4%9E%E9%AA%8C%E8%AF%81%E6%95%88%E7%8E%87%E7%9A%84%E5%B7%A5%E5%85%B7/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -248,7 +248,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          2021年我的学习计划
+          提高漏洞验证效率的工具
         </h1>
 
         <div class="post-meta-container">
@@ -260,7 +260,7 @@
       <span class="post-meta-item-text">发表于</span>
       
 
-      <time title="创建时间：2021-02-12 17:05:14 / 修改时间：22:54:07" itemprop="dateCreated datePublished" datetime="2021-02-12T17:05:14+08:00">2021-02-12</time>
+      <time title="创建时间：2021-07-01 09:58:57 / 修改时间：09:59:34" itemprop="dateCreated datePublished" datetime="2021-07-01T09:58:57+08:00">2021-07-01</time>
     </span>
 
   
@@ -273,66 +273,37 @@
     
     
     <div class="post-body" itemprop="articleBody">
-        <h1 id="学习方向"><a href="#学习方向" class="headerlink" title="学习方向"></a>学习方向</h1><p>2021年给自己定了一些学习内容，包括：</p>
+        <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>某个xss漏洞点如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;script&gt;</span><br><span class="line">x&#x3D;document.createElement(&quot;script&quot;);</span><br><span class="line">x.setAttribute(&quot;src&quot;, &quot;用户可控的地址&quot;);</span><br><span class="line">document.body.appendChild(x);</span><br><span class="line">&lt;&#x2F;script&gt;</span><br></pre></td></tr></table></figure>
+
+<p>虽然xss漏洞肯定是存在的，但是我不知道利用起来是不是会有问题，比如碰到csp等。</p>
+<p>所以我在”用户可控地址” 填入 “<a target="_blank" rel="noopener" href="http://x.x.x.x/1.js&quot;">http://x.x.x.x/1.js&quot;</a> 来验证，于是出现了点问题。</p>
+<p>第一个问题：https站点引入http静态资源时，浏览器控制台出现”混合内容”警告。似乎会影响js解析</p>
+<p>第二个问题：响应头的content-type需要是text/javascript，否则不能当作js解析</p>
+<p>所以我需要一个web服务：</p>
 <ul>
-<li>补专业课程<ul>
-<li>编译原理   【优先级高】</li>
-<li>计算机操作系统 【优先级高】</li>
-<li>网络编程   【优先级中】</li>
-<li>设计模式   【优先级低】</li>
-<li>计算机组成原理 【优先级低】</li>
-<li>数据结构和算法 【优先级低】</li>
+<li>支持https</li>
+<li>返回内容可以自定义</li>
+<li>响应头content-type可以自定义</li>
+<li>支持公网访问</li>
 </ul>
-</li>
-<li>深入学习一门语言<ul>
-<li>Python 或者 Golang</li>
-</ul>
-</li>
-</ul>
-<p>上面我根据自己的需要标注了学习的优先级。在2020年底已经学习了其中一部分。</p>
-<h1 id="为啥想着学这些呢？"><a href="#为啥想着学这些呢？" class="headerlink" title="为啥想着学这些呢？"></a>为啥想着学这些呢？</h1><p>在之前的工作中，我主要关注下面这些，包括</p>
+<p>自己去搭这样一个服务也不难，但是如果有现成的岂不是更好，省时省力。</p>
+<p>根据历史经验，我知道有两种平台似乎可以解决我的这个小需求：</p>
 <ul>
-<li>安全产品<ul>
-<li>白盒扫描</li>
-<li>黑盒扫描</li>
-<li>WAF</li>
-<li>HIDS</li>
+<li>类似 pastebin 的平台，可以通过短链接访问</li>
+<li>xss平台</li>
 </ul>
-</li>
-<li>安全研究<ul>
-<li>容器</li>
-<li>Web</li>
-<li>二进制</li>
-</ul>
-</li>
-<li>安全建设<ul>
-<li>SDL</li>
-</ul>
-</li>
-</ul>
-<p>这些方向或浅或深地都和专业课程内容相关。比如说：</p>
-<ul>
-<li><p>开发中用的很多库背后有编译原理的知识点。比如搞Web安全的都知道FastJSON RCE漏洞，FastJSON做序列化时也会对输入字符串做词法分析。在分析FastJSON漏洞时如果清楚词法分析的概念和状态机实现，就可能不会迷失在代码细节中。词法分析就是编译原理前端部分的一小块内容。</p>
-</li>
-<li><p>WAF中SQL注入检测可以基于SQL语义分析，理论上效果比正则写的防护规则好很多，而语义分析就属于编译原理中前端部分的一块内容。</p>
-</li>
-<li><p>学习二进制安全时，栈溢出和可执行文件的内存分布、函数调用过程等知识点非常相关，整型溢出和数字在计算机中的存储方式等知识点有关。这些知识点都在操作系统有讲到。</p>
-</li>
-<li><p>之前在做开发工作时也会有不少需要操作系统知识的地方。比方说使用Python时因为GIL的存在，所以线程并不是同时运行，但是为啥线程在IO密集型应用中能够提高运行速度呢？这就涉及到Python实现和操作系统线程调度的知识。</p>
-</li>
-<li><p>之前在研究云安全时遇到过一个case，就是容器内用户身份已经是root但是无法做arp欺骗攻击其他同网段同宿主机的容器。这个case的原因和网络知识的raw_socket有些关系。</p>
-</li>
-<li><p>之前在做开发时对Python2.7的gevent monkey补丁工作原理有疑问。虽然网络上有很多的文章分析，但是自己总是看得不是很明白。我想原因是这一块涉及到的”阻塞与非阻塞、同步与非同步、多路复用”等知识点是需要花时间成体系理解的。这些知识点在网络编程中会有详细说明。</p>
-</li>
-</ul>
-<p>在工作中，很常用的学习方法是遇到啥就去查，边查边学。这样的学习方式好处是学习动力足、能快速解决问题，坏处是有时候这种学习方法不灵，比方说学习语义分析时，就必须要把词法分析、语法分析先学了，这其中需要花费的时间和精力还是不少的。如果靠自己在网上搜索的零零散散的知识点学习，效率就太低了。</p>
-<p>总的来说，这一部分知识和工作的关联程度很高，且不太适合边查边学，所以需要系统地学习。</p>
-<p>事实上，我觉得《编译原理》和《计算机操作系统》两门课太重要了，没学过且有一些需求驱动的读者，都可以看一看，不会亏。指不定就能花20%的时间掌握其中80%的内容，解决工作中的技术难题呢。</p>
-<h1 id="怎么学这些呢？"><a href="#怎么学这些呢？" class="headerlink" title="怎么学这些呢？"></a>怎么学这些呢？</h1><p>除了经典书籍，还有一些方式、资源，比如：</p>
-<ul>
-<li>请教公司的老师傅（我们部门的交流学习氛围还是挺不错的）</li>
-<li>正在极客时间上学<a target="_blank" rel="noopener" href="https://time.geekbang.org/column/intro/219">编译原理之美</a>，课程内容深入浅出，评论区里也有各路人马答疑解惑，推荐给大家。</li>
-</ul>
+<h1 id="测试这些平台是否好用"><a href="#测试这些平台是否好用" class="headerlink" title="测试这些平台是否好用"></a>测试这些平台是否好用</h1><p><a target="_blank" rel="noopener" href="http://ix.io/">http://ix.io</a> : 不支持https</p>
+<p><a target="_blank" rel="noopener" href="http://pastebin.com/">http://pastebin.com</a>: 不支持设置content-type</p>
+<p>搜索到的很多xss平台，都需要邀请码。甚至有的注册成功了，但是使用起来有问题。</p>
+<p>再比如 xssye.com 这个xss平台我很久以前用过。今天登陆提示账号密码登陆不上，申请密码找回提示邮箱和账号对不上，重新注册又提示”需要注册邀请码”。</p>
+<p>总之试了几个，感觉用着比较难受。这些xss平台看前段页面似乎都是一套代码，也不确定是否可能存在漏洞。</p>
+<h1 id="有没有稳定好用的服务"><a href="#有没有稳定好用的服务" class="headerlink" title="有没有稳定好用的服务"></a>有没有稳定好用的服务</h1><p>想起来云上的文件存储服务，刚好是满足我自己的需求的。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">➜  ~ curl https:&#x2F;&#x2F;webbackup-3knjfg4bxz.bj.bcebos.com&#x2F;1.js</span><br><span class="line">alert(1);</span><br></pre></td></tr></table></figure>
+
+<p>另外云上的函数服务，还可以写代码对响应做更精细的控制。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>云上的 文件存储、函数服务 等很适合快速在公网提供https服务，而且相对于个人自己搭建的服务要稳定省心得多，推荐使用。</p>
+<p>当然云上也有很坑的服务，就不说了。</p>
 
     </div>
 
@@ -342,21 +313,18 @@
 
     <footer class="post-footer">
           <div class="post-tags">
-              <a href="/tags/%E5%AE%89%E5%85%A8%E7%A0%94%E7%A9%B6/" rel="tag"><i class="fa fa-tag"></i> 安全研究</a>
+              <a href="/tags/%E5%AE%89%E5%85%A8%E6%B5%8B%E8%AF%95/" rel="tag"><i class="fa fa-tag"></i> 安全测试</a>
           </div>
 
         
 
           <div class="post-nav">
             <div class="post-nav-item">
-                <a href="/2021-02-03-Python%E6%A0%88%E6%BA%A2%E5%87%BACVE-2021-3177%E5%88%86%E6%9E%90/" rel="prev" title="Python栈溢出CVE-2021-3177分析">
-                  <i class="fa fa-chevron-left"></i> Python栈溢出CVE-2021-3177分析
+                <a href="/2021-06-12-%E9%AA%8C%E8%AF%81pf_ring%E6%80%A7%E8%83%BD/" rel="prev" title="验证pf_ring性能">
+                  <i class="fa fa-chevron-left"></i> 验证pf_ring性能
                 </a>
             </div>
             <div class="post-nav-item">
-                <a href="/2021-03-04-%E6%9F%90%E5%8E%82%E5%95%86%E7%9A%84%E5%8F%8D%E5%BC%B9shell%E9%98%B2%E6%8A%A4%E8%83%BD%E5%8A%9B%E6%B5%8B%E8%AF%95/" rel="next" title="某厂商的反弹shell防护能力测试">
-                  某厂商的反弹shell防护能力测试 <i class="fa fa-chevron-right"></i>
-                </a>
             </div>
           </div>
     </footer>
@@ -442,7 +410,7 @@ NexT.utils.loadComments('#gitalk-container', () => {
       repo        : 'gitalk-comment',
       owner       : 'leveryd',
       admin       : ['leveryd'],
-      id          : '3e022de9da26253047e02f89025f912c',
+      id          : '127529b6f52aaa9372910f5c80108e3c',
         language: 'zh-CN',
       distractionFreeMode: false
     });
