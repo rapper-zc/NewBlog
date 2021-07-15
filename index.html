@@ -177,7 +177,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">26</span>
+          <span class="site-state-item-count">27</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -241,7 +241,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2021-07-12-%E5%AE%89%E5%85%A8%E5%BB%BA%E8%AE%BE-%E6%94%BB%E9%98%B2%E6%80%9D%E8%B7%AF%E5%8F%8A%E5%AE%9E%E8%B7%B5%EF%BC%88%E4%B8%80%EF%BC%89/" class="post-title-link" itemprop="url">安全建设-攻防思路及实践</a>
+          <a href="/2021-07-12-%E5%AE%89%E5%85%A8%E5%BB%BA%E8%AE%BE-%E6%94%BB%E9%98%B2%E6%80%9D%E8%B7%AF%E5%8F%8A%E5%AE%9E%E8%B7%B5%EF%BC%88%E4%B8%80%EF%BC%89/" class="post-title-link" itemprop="url">安全建设-攻防思路及实践（一）</a>
         </h2>
 
         <div class="post-meta-container">
@@ -251,10 +251,16 @@
         <i class="far fa-calendar"></i>
       </span>
       <span class="post-meta-item-text">发表于</span>
-      
 
-      <time title="创建时间：2021-07-12 13:54:09 / 修改时间：13:54:45" itemprop="dateCreated datePublished" datetime="2021-07-12T13:54:09+08:00">2021-07-12</time>
+      <time title="创建时间：2021-07-12 13:54:09" itemprop="dateCreated datePublished" datetime="2021-07-12T13:54:09+08:00">2021-07-12</time>
     </span>
+      <span class="post-meta-item">
+        <span class="post-meta-item-icon">
+          <i class="far fa-calendar-check"></i>
+        </span>
+        <span class="post-meta-item-text">更新于</span>
+        <time title="修改时间：2021-07-14 20:06:20" itemprop="dateModified" datetime="2021-07-14T20:06:20+08:00">2021-07-14</time>
+      </span>
 
   
 </div>
@@ -291,13 +297,13 @@
 <p>第一步筛选管理后台地址的策略包括：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">* 域名中包含关键词，直接当作后台管理系统</span><br><span class="line">* 30x跳转地址包含关键词</span><br><span class="line">* 响应html中包含table标签（因为有可能后台管理首页就存在未授权访问，数据展示时会用到table标签）</span><br><span class="line">* 判断页面是否是vue框架写的（因为很多开发喜欢选择用vue来做管理系统）</span><br></pre></td></tr></table></figure>
 
-<p>脚本代码：<a target="_blank" rel="noopener" href="https://gist.github.com/leveryd/334b719e253261ffd0abfd161e499ae7">https://gist.github.com/leveryd/334b719e253261ffd0abfd161e499ae7</a></p>
+<p>脚本片段：<a target="_blank" rel="noopener" href="https://gist.github.com/leveryd/334b719e253261ffd0abfd161e499ae7">https://gist.github.com/leveryd/334b719e253261ffd0abfd161e499ae7</a></p>
 </li>
 <li><p>怎么找api接口？</p>
 <p>从js文件文本中找，策略如下：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">* 将js代码中字符串常量提取出来</span><br><span class="line">* 字符串常量匹配 &#96;&#x2F;[\w\d\-.&#x2F;]+&#96; 且不以 &#x2F;&#x2F; 字符开头，认为是api路径</span><br><span class="line">* 字符串常量匹配 &#96;[\w\d\-]+&#x2F;[\w\d\-.&#x2F;]+&#96; 且不以 &#x2F; 字符开头，认为是api路径</span><br></pre></td></tr></table></figure>
 
-<p>脚本代码：<a target="_blank" rel="noopener" href="https://gist.github.com/leveryd/465d19610d5fcf99199beb9284cd6f8c">https://gist.github.com/leveryd/465d19610d5fcf99199beb9284cd6f8c</a></p>
+<p>脚本片段：<a target="_blank" rel="noopener" href="https://gist.github.com/leveryd/465d19610d5fcf99199beb9284cd6f8c">https://gist.github.com/leveryd/465d19610d5fcf99199beb9284cd6f8c</a></p>
 <p>这种方式不需要前端存在sourcemap泄漏。</p>
 <p>当然如果前端有sourcemap信息就更好，这样可以利用 <a target="_blank" rel="noopener" href="https://github.com/SunHuawei/SourceDetector">利用sourcemap还原前端项目-浏览器插件</a> 这种工具还原前端项目，代码阅读性更好一些。接着对前端项目做代码审计，有可能在前端代码中看到 啥token、啥功能比较特殊的api接口（比如上传文件）。</p>
 </li>
@@ -344,6 +350,107 @@
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>验证了这个老套路在国内还是能挖到洞的。</p>
 <p>站在攻击方的角度来看，现有每一步的安全策略可以优化，比如可以详细调研一下后台系统的分类，比如为什么开源的cms后台和前台经常是在一个域名下，而企业里的后台系统为什么经常是单独的访问方式？</p>
 <p>整个流程或许也可以优化到完全依赖工具产出报警，就像 <a target="_blank" rel="noopener" href="https://www.hackinn.com/index.php/archives/744/">一种针对Webpack等前端打包工具构建的网站的自动化测试思路（附开源项目）</a> 一样。虽然没有用过这个项目，但是看文章介绍感觉有不少实战上的细节和经验。</p>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-07-01-%E7%A5%9E%E5%A5%87%E7%9A%84javascript-%E4%B8%8D%E7%94%A8%E6%8B%AC%E5%8F%B7%E5%B8%A6%E5%8F%82%E6%89%A7%E8%A1%8C%E5%87%BD%E6%95%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021-07-01-%E7%A5%9E%E5%A5%87%E7%9A%84javascript-%E4%B8%8D%E7%94%A8%E6%8B%AC%E5%8F%B7%E5%B8%A6%E5%8F%82%E6%89%A7%E8%A1%8C%E5%87%BD%E6%95%B0/" class="post-title-link" itemprop="url">神奇的javascript-不用括号带参执行函数</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2021-07-01 20:11:45" itemprop="dateCreated datePublished" datetime="2021-07-01T20:11:45+08:00">2021-07-01</time>
+    </span>
+      <span class="post-meta-item">
+        <span class="post-meta-item-icon">
+          <i class="far fa-calendar-check"></i>
+        </span>
+        <span class="post-meta-item-text">更新于</span>
+        <time title="修改时间：2021-07-15 10:37:31" itemprop="dateModified" datetime="2021-07-15T10:37:31+08:00">2021-07-15</time>
+      </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>两周前，我遇到一个挺有意思的xss，过滤了很多符号，包括<code>&lt;&gt;=()`[]</code>等。</p>
+<p>我将此问题抽象成<a target="_blank" rel="noopener" href="https://04bdb3a0.o53.xyz/a1e60ae3-4bac-4012-a0f3-5b7018677979.php?a=1">ctf题目</a>，题目源码公开在 <a target="_blank" rel="noopener" href="https://gist.github.com/leveryd/40fcaed60727b6163b034145e332640f">github</a>。</p>
+<p>前两天在 <a target="_blank" rel="noopener" href="https://gist.github.com/leveryd/40fcaed60727b6163b034145e332640f">题目评论</a> 中看到有师傅把答案贴出来了，我就说一下这个案例。</p>
+<h1 id="测试时遇到的问题"><a href="#测试时遇到的问题" class="headerlink" title="测试时遇到的问题"></a>测试时遇到的问题</h1><p>实际测试时遇到的问题，也是题目中有两个比较难的地方：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">* javascript不用 &lt;&gt;&#x3D;()&#96;[] 等符号，怎么调用函数？</span><br><span class="line">* javascript不用 &lt;&gt;&#x3D;()&#96;[] 等符号，怎么调用函数，并且带上参数？</span><br></pre></td></tr></table></figure>
+
+<p>第一个问题简单一点：在发生类型转换时，会执行valueOf或者toString属性值指向的函数。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">1-&#123;valueOf:function()&#123;alert(1)&#125;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>第二个问题难一点，需要对this的用法比较熟悉。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">在函数外部,this指向window对象</span><br><span class="line"></span><br><span class="line">在函数内部：</span><br><span class="line"></span><br><span class="line">* 普通调用时</span><br><span class="line">  * strict模式下，this指向undeined</span><br><span class="line">  * 非strict模式下，this指向当前对象</span><br></pre></td></tr></table></figure>
+
+<p>还有一些方式改变this指向的对象，包括：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">* 调用call函数、apply函数等指定对象</span><br><span class="line">* new构造函数</span><br></pre></td></tr></table></figure>
+
+<p>this涉及的情况比较多，也比较反直觉，这里就不多说了。可以看 <a target="_blank" rel="noopener" href="https://time.geekbang.org/column/article/113399">11 | this：从JavaScript执行上下文的视角讲清楚this</a> 这篇文章。</p>
+<h1 id="题目解法"><a href="#题目解法" class="headerlink" title="题目解法"></a>题目解法</h1><p>我的解法和 @rmb122 师傅一样：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">https:&#x2F;&#x2F;04bdb3a0.o53.xyz&#x2F;a1e60ae3-4bac-4012-a0f3-5b7018677979.php?a&#x3D;xx%27-&#123;valueOf:test.a,%27call%27:%22%27%22%2blocation.hash&#125;-%27#&#39;;hello(&#39;a&#39;,&#39;b&#39;,&#39;c&#39;);&#x2F;&#x2F;</span><br></pre></td></tr></table></figure>
+
+<p>我也把题目发给我做前端开发的朋友，他的解法如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">https:&#x2F;&#x2F;04bdb3a0.o53.xyz&#x2F;a1e60ae3-4bac-4012-a0f3-5b7018677979.php?a&#x3D;%27%2B&#123;toString:%20test.a,call:%20%27hello%27%2B[...hello%2B%27%27][29]%2B%22%27a%27,%22%2B%22%27b%27,%22%2B%22%27c%27%22%2B[...hello%2B%27%27][56]&#125;%2B%27</span><br></pre></td></tr></table></figure>
+
+<p>中间有个小插曲：在朋友把他的解法发我后，我在代码中添加了对[]符号的过滤，因为我碰到的实际案例中也过滤了[]符号。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>虽然当时绕过了xss的过滤，也清楚触发流程，但是我不明白为什么会这么触发。</p>
+<p>所以补了一下和此题相关的语法及概念，包括以下内容：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">* 类型转换</span><br><span class="line">* this是什么</span><br><span class="line">* 函数是一等公民</span><br></pre></td></tr></table></figure>
+
+<p>由这个问题想到，是否其他语言有类似场景？比如某个对象可控时，对它做运算会导致函数调用。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">obj &#x3D; &#123;&quot;可控key&quot;:&quot;可控value&quot;&#125;</span><br><span class="line"></span><br><span class="line">操作 obj</span><br></pre></td></tr></table></figure>
+
+<p>这是一个木有答案的问题。</p>
 
       
     </div>
@@ -1546,130 +1653,6 @@
 </ul>
 <p>阻塞时的connect系统调用是有默认的最大时间限制，这个和系统配置有关；可以用”非阻塞connect+select/poll”来实现connect的超时控制。</p>
 <p>在排查这个case原因时，发现这里存在潜在的dos攻击问题，也上报给Python官方，很快被修复了。</p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-04-17-%E9%AA%8C%E8%AF%81%E6%98%AF%E5%90%A6%E5%AD%98%E5%9C%A8%E5%86%99%E6%96%87%E4%BB%B6%E6%BC%8F%E6%B4%9E%E5%B0%8F%E6%8A%80%E5%B7%A7/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="leveryd">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="leveryd的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2021-04-17-%E9%AA%8C%E8%AF%81%E6%98%AF%E5%90%A6%E5%AD%98%E5%9C%A8%E5%86%99%E6%96%87%E4%BB%B6%E6%BC%8F%E6%B4%9E%E5%B0%8F%E6%8A%80%E5%B7%A7/" class="post-title-link" itemprop="url">验证是否存在写文件漏洞小技巧</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-      
-
-      <time title="创建时间：2021-04-17 23:37:20 / 修改时间：23:38:24" itemprop="dateCreated datePublished" datetime="2021-04-17T23:37:20+08:00">2021-04-17</time>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>在安全黑盒测试时遇到一个疑似能写任意文件的漏洞点，想要验证漏洞是否存在。</p>
-<p>这里就猜测后端代码可能如下：存在可能的任意写文件漏洞，可写的内容部分可控、服务权限未知</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">content &#x3D; &quot;something start&quot; + &quot;用户可控的内容&quot; + &quot;something end&quot;</span><br><span class="line">f &#x3D; open(&quot;用户指定的文件路径&quot;, &quot;w&quot;)</span><br><span class="line">f.write(content)</span><br></pre></td></tr></table></figure>
-
-<p>最开始用”写入ping dnslog命令到crontab”来验证写文件漏洞是否存在，不过验证失败了，可能因为下面两个原因：</p>
-<ul>
-<li>目标机器没启动cron服务</li>
-<li>服务身份可能不是root，没有权限写 /var/spool/cron目录和/etc/crontab</li>
-</ul>
-<p>也可以写内容到 .bashrc、web路径、常用文件（比如bash、ping等），但这些方式都有一点限制：</p>
-<ul>
-<li>/root/.bashrc因为服务身份不一定是root，所以可能写入失败</li>
-<li>.bashrc需要登陆到机器才能触发</li>
-<li>web路径位置未知</li>
-<li>写常用文件(比如bash、ping等)可能影响目标系统的稳定性，并且需要等待目标操作才能触发</li>
-</ul>
-<p>我这里只想要快速验证”写文件漏洞”是否存在，确认存在后，再来尝试上述或者别的方法来做漏洞利用。</p>
-<p>为了验证”写文件漏洞”是否存在，我的思路是 能不能找到一个特殊文件，写内容到此文件会造成延时或者产生dnslog。</p>
-<p>我能想到的特殊文件包括：</p>
-<ul>
-<li>管道文件</li>
-<li>/dev/tcp/{host}/{ip}</li>
-<li>socket文件</li>
-<li>标准描述符  (/proc/self/fd/0、/proc/self/fd/1)</li>
-</ul>
-<p>下面就是验证这些文件，哪个符合需求</p>
-<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><ul>
-<li><p>管道文件</p>
-<p>思路：找到系统上默认的管道文件，并且验证写入文件是否阻塞</p>
-<ol>
-<li><p>找出系统默认的管道文件</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">find &#x2F; -type p</span><br></pre></td></tr></table></figure>
-
-<p> 可以看到CentOS 7.9系统默认存在一些管道文件</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;run&#x2F;dmeventd-client</span><br><span class="line">&#x2F;run&#x2F;dmeventd-server</span><br><span class="line">&#x2F;run&#x2F;systemd&#x2F;ask-password-block&#x2F;136:4</span><br><span class="line">&#x2F;run&#x2F;systemd&#x2F;sessions&#x2F;1.ref</span><br><span class="line">&#x2F;run&#x2F;systemd&#x2F;initctl&#x2F;fifo</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>验证上面的管道文件，有一个可以利用</p>
-<p> <code>echo 1 &gt; /run/systemd/ask-password-block/136:4</code>  会阻塞</p>
-<p> 这个文件在其他系统文件名略微有点不同，并且只有root用户可以读写</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">另一个CentOS7.9: &#x2F;run&#x2F;systemd&#x2F;ask-password-block&#x2F;136:0</span><br><span class="line">ubuntu：&#x2F;run&#x2F;systemd&#x2F;ask-password-block&#x2F;136:2</span><br></pre></td></tr></table></figure>
-
-</li>
-</ol>
-<p>小结：可以用 /run/systemd/ask-password-block/136:{id} 文件来探测是否存在文件写漏洞，前提是服务有root权限</p>
-</li>
-</ul>
-<ul>
-<li><p>/dev/tcp/{host}/{ip}</p>
-<p>在bash反弹shell中会用到这个。</p>
-<p>它不是文件，只是bash解释器会对/dev/tcp对特殊处理，代表了一个tcp socket。</p>
-<p>所以它不满足需求。</p>
-</li>
-<li><p>socket文件</p>
-<p>操作socket文件不是open、write、close这一套流程，所以肯定不行。</p>
-</li>
-</ul>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ul>
-<li>可以用 /run/systemd/ask-password-block/136:{id} 文件来探测是否存在文件写漏洞，前提是服务有root权限。</li>
-</ul>
-<p>最后，感谢和我讨论这个小问题的朋友。</p>
 
       
     </div>
