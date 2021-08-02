@@ -23,21 +23,21 @@
     var NexT = window.NexT || {};
     var CONFIG = {"hostname":"yoursite.com","root":"/","images":"/images","scheme":"Pisces","version":"8.1.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}};
   </script>
-<meta name="description" content="问题背景在安全黑盒测试时遇到一个疑似能写任意文件的漏洞点，想要验证漏洞是否存在。 这里就猜测后端代码可能如下：存在可能的任意写文件漏洞，可写的内容部分可控、服务权限未知 123content &#x3D; &quot;something start&quot; + &quot;用户可控的内容&quot; + &quot;something end&quot;f &#x3D; open(&quot;">
+<meta name="description" content="背景有一个挖src的老套路：”.git目录”信息泄漏 + 人工代码审计。 当网站可以访问”.git&#x2F;index”时，可以用GitHack — 一个git泄露利用脚本工具还原整个项目工程。然后对源码做代码审计，尝试挖掘漏洞。 实际的案例可以见 百姓某处信息泄露可GET SHELL 个人体会：对于企业内部业务的源码做代码审计来挖掘漏洞，难度比挖”成熟的框架、组件”容易太多了，都不需要攻击者掌握多少代码">
 <meta property="og:type" content="article">
-<meta property="og:title" content="验证是否存在写文件漏洞小技巧">
-<meta property="og:url" content="http://yoursite.com/2021-04-17-%E9%AA%8C%E8%AF%81%E6%98%AF%E5%90%A6%E5%AD%98%E5%9C%A8%E5%86%99%E6%96%87%E4%BB%B6%E6%BC%8F%E6%B4%9E%E5%B0%8F%E6%8A%80%E5%B7%A7/index.html">
+<meta property="og:title" content="安全建设-攻防思路及实践（二）">
+<meta property="og:url" content="http://yoursite.com/2021-07-18-%E5%AE%89%E5%85%A8%E5%BB%BA%E8%AE%BE-%E6%94%BB%E9%98%B2%E6%80%9D%E8%B7%AF%E5%8F%8A%E5%AE%9E%E8%B7%B5%EF%BC%88%E4%BA%8C%EF%BC%89/index.html">
 <meta property="og:site_name" content="leveryd的个人博客">
-<meta property="og:description" content="问题背景在安全黑盒测试时遇到一个疑似能写任意文件的漏洞点，想要验证漏洞是否存在。 这里就猜测后端代码可能如下：存在可能的任意写文件漏洞，可写的内容部分可控、服务权限未知 123content &#x3D; &quot;something start&quot; + &quot;用户可控的内容&quot; + &quot;something end&quot;f &#x3D; open(&quot;">
+<meta property="og:description" content="背景有一个挖src的老套路：”.git目录”信息泄漏 + 人工代码审计。 当网站可以访问”.git&#x2F;index”时，可以用GitHack — 一个git泄露利用脚本工具还原整个项目工程。然后对源码做代码审计，尝试挖掘漏洞。 实际的案例可以见 百姓某处信息泄露可GET SHELL 个人体会：对于企业内部业务的源码做代码审计来挖掘漏洞，难度比挖”成熟的框架、组件”容易太多了，都不需要攻击者掌握多少代码">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2021-04-17T15:37:20.543Z">
-<meta property="article:modified_time" content="2021-04-17T15:38:24.256Z">
+<meta property="article:published_time" content="2021-07-18T08:31:06.412Z">
+<meta property="article:modified_time" content="2021-07-19T02:25:48.051Z">
 <meta property="article:author" content="leveryd">
 <meta property="article:tag" content="安全测试">
 <meta name="twitter:card" content="summary">
 
 
-<link rel="canonical" href="http://yoursite.com/2021-04-17-%E9%AA%8C%E8%AF%81%E6%98%AF%E5%90%A6%E5%AD%98%E5%9C%A8%E5%86%99%E6%96%87%E4%BB%B6%E6%BC%8F%E6%B4%9E%E5%B0%8F%E6%8A%80%E5%B7%A7/">
+<link rel="canonical" href="http://yoursite.com/2021-07-18-%E5%AE%89%E5%85%A8%E5%BB%BA%E8%AE%BE-%E6%94%BB%E9%98%B2%E6%80%9D%E8%B7%AF%E5%8F%8A%E5%AE%9E%E8%B7%B5%EF%BC%88%E4%BA%8C%EF%BC%89/">
 
 
 <script class="page-configurations">
@@ -49,7 +49,7 @@
     lang   : 'zh-CN'
   };
 </script>
-<title>验证是否存在写文件漏洞小技巧 | leveryd的个人博客</title>
+<title>安全建设-攻防思路及实践（二） | leveryd的个人博客</title>
   
 
 
@@ -169,7 +169,7 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <section class="post-toc-wrap sidebar-panel">
-            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E8%83%8C%E6%99%AF"><span class="nav-number">1.</span> <span class="nav-text">问题背景</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%88%86%E6%9E%90%E8%BF%87%E7%A8%8B"><span class="nav-number">2.</span> <span class="nav-text">分析过程</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">3.</span> <span class="nav-text">总结</span></a></li></ol></div>
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%83%8C%E6%99%AF"><span class="nav-number">1.</span> <span class="nav-text">背景</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AF%A6%E7%BB%86%E8%BF%87%E7%A8%8B"><span class="nav-number">2.</span> <span class="nav-text">详细过程</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%88%90%E6%9E%9C"><span class="nav-number">3.</span> <span class="nav-text">成果</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E5%85%A8%E5%BB%BA%E8%AE%BE"><span class="nav-number">4.</span> <span class="nav-text">安全建设</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">5.</span> <span class="nav-text">总结</span></a></li></ol></div>
         </section>
         <!--/noindex-->
 
@@ -235,7 +235,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-04-17-%E9%AA%8C%E8%AF%81%E6%98%AF%E5%90%A6%E5%AD%98%E5%9C%A8%E5%86%99%E6%96%87%E4%BB%B6%E6%BC%8F%E6%B4%9E%E5%B0%8F%E6%8A%80%E5%B7%A7/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-07-18-%E5%AE%89%E5%85%A8%E5%BB%BA%E8%AE%BE-%E6%94%BB%E9%98%B2%E6%80%9D%E8%B7%AF%E5%8F%8A%E5%AE%9E%E8%B7%B5%EF%BC%88%E4%BA%8C%EF%BC%89/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -248,7 +248,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          验证是否存在写文件漏洞小技巧
+          安全建设-攻防思路及实践（二）
         </h1>
 
         <div class="post-meta-container">
@@ -258,10 +258,16 @@
         <i class="far fa-calendar"></i>
       </span>
       <span class="post-meta-item-text">发表于</span>
-      
 
-      <time title="创建时间：2021-04-17 23:37:20 / 修改时间：23:38:24" itemprop="dateCreated datePublished" datetime="2021-04-17T23:37:20+08:00">2021-04-17</time>
+      <time title="创建时间：2021-07-18 16:31:06" itemprop="dateCreated datePublished" datetime="2021-07-18T16:31:06+08:00">2021-07-18</time>
     </span>
+      <span class="post-meta-item">
+        <span class="post-meta-item-icon">
+          <i class="far fa-calendar-check"></i>
+        </span>
+        <span class="post-meta-item-text">更新于</span>
+        <time title="修改时间：2021-07-19 10:25:48" itemprop="dateModified" datetime="2021-07-19T10:25:48+08:00">2021-07-19</time>
+      </span>
 
   
 </div>
@@ -273,66 +279,51 @@
     
     
     <div class="post-body" itemprop="articleBody">
-        <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>在安全黑盒测试时遇到一个疑似能写任意文件的漏洞点，想要验证漏洞是否存在。</p>
-<p>这里就猜测后端代码可能如下：存在可能的任意写文件漏洞，可写的内容部分可控、服务权限未知</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">content &#x3D; &quot;something start&quot; + &quot;用户可控的内容&quot; + &quot;something end&quot;</span><br><span class="line">f &#x3D; open(&quot;用户指定的文件路径&quot;, &quot;w&quot;)</span><br><span class="line">f.write(content)</span><br></pre></td></tr></table></figure>
+        <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>有一个挖src的老套路：”.git目录”信息泄漏 + 人工代码审计。</p>
+<p>当网站可以访问”.git/index”时，可以用<a target="_blank" rel="noopener" href="http://www.lijiejie.com/githack-a-git-disclosure-exploit/">GitHack — 一个git泄露利用脚本</a>工具还原整个项目工程。然后对源码做代码审计，尝试挖掘漏洞。</p>
+<p>实际的案例可以见 <a target="_blank" rel="noopener" href="https://github.com/fun1355/Papers-1/blob/master/PVE-2015080201.md">百姓某处信息泄露可GET SHELL</a></p>
+<p>个人体会：对于企业内部业务的源码做代码审计来挖掘漏洞，难度比挖”成熟的框架、组件”容易太多了，都不需要攻击者掌握多少代码审计中的偏门技巧等。比如源码中非常可能就有api认证用的token，拿着token就能像也业务方一样调用api。</p>
+<h1 id="详细过程"><a href="#详细过程" class="headerlink" title="详细过程"></a>详细过程</h1><ul>
+<li><p>为啥会出现”.git目录信息泄漏”？</p>
+<p>根据个人有限的经验来看，很多公司都会建设devops平台，开发只需要在平台上提交上线单，就可以自动地拉取代码、编译构建、保存版本、发布部署。</p>
+<p>在”拉取代码”这一环节，devops平台从内部git平台上获取源码，其中就包括”.git目录”。</p>
+<p>在php、python等非编译语言的项目构建过程中，非常有可能就是简单地将整个项目全部拷贝到”产出目录”中，此时”.git目录”也会跟着被拷贝过去。</p>
+<p>等到了”发布部署”环节，”.git目录”自然就会出现在线上了。</p>
+</li>
+<li><p>利用”.git目录信息泄漏”还原”项目工程”时遇到的问题</p>
+<p>偶尔会遇到的一个问题是：不一定能访问”.git/index”就一定能用工具还原出整个项目。</p>
+<p>这个原因之前没有深究过，有可能是”.git/objects”目录下的文件无法访问。</p>
+<p>遇到这种情况时，还可以：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">* .git&#x2F;index中包含了所有的文件名，可以直接访问文件名对应的url。比如暴露出的js文件，可以直接下载后找api信息。</span><br><span class="line">* .git&#x2F;config中包含了配置信息</span><br><span class="line">* 尝试手动下载 .git&#x2F;objects 目录下的 &quot;项目工程&quot;文件</span><br></pre></td></tr></table></figure>
 
-<p>最开始用”写入ping dnslog命令到crontab”来验证写文件漏洞是否存在，不过验证失败了，可能因为下面两个原因：</p>
-<ul>
-<li>目标机器没启动cron服务</li>
-<li>服务身份可能不是root，没有权限写 /var/spool/cron目录和/etc/crontab</li>
+<p>另外更常见的问题是会遇到防火墙。这个时候可以试试 <code>.git/./index</code> 、 <code>.git///index</code> 、<code>/?/../.git/index</code>、<code>/%3f/../.git/index</code> 等</p>
+</li>
 </ul>
-<p>也可以写内容到 .bashrc、web路径、常用文件（比如bash、ping等），但这些方式都有一点限制：</p>
+<h1 id="成果"><a href="#成果" class="headerlink" title="成果"></a>成果</h1><p>漏洞（包括类似”git目录”等信息泄漏）均已提交并修复，包括并不限于：</p>
 <ul>
-<li>/root/.bashrc因为服务身份不一定是root，所以可能写入失败</li>
-<li>.bashrc需要登陆到机器才能触发</li>
-<li>web路径位置未知</li>
-<li>写常用文件(比如bash、ping等)可能影响目标系统的稳定性，并且需要等待目标操作才能触发</li>
+<li>[评级严重-360游戏]</li>
+<li>两个 [评级低危-腾讯]</li>
+<li>两个 [评级中危-腾讯]</li>
 </ul>
-<p>我这里只想要快速验证”写文件漏洞”是否存在，确认存在后，再来尝试上述或者别的方法来做漏洞利用。</p>
-<p>为了验证”写文件漏洞”是否存在，我的思路是 能不能找到一个特殊文件，写内容到此文件会造成延时或者产生dnslog。</p>
-<p>我能想到的特殊文件包括：</p>
+<p>2021年了，感觉 “.git目录”这种信息泄漏少见了很多。</p>
+<h1 id="安全建设"><a href="#安全建设" class="headerlink" title="安全建设"></a>安全建设</h1><p>对于”.git等文件信息泄漏”和”代码安全”，这两类风险，在企业安全建设中是怎么防范的呢？</p>
 <ul>
-<li>管道文件</li>
-<li>/dev/tcp/{host}/{ip}</li>
-<li>socket文件</li>
-<li>标准描述符  (/proc/self/fd/0、/proc/self/fd/1)</li>
-</ul>
-<p>下面就是验证这些文件，哪个符合需求</p>
-<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><ul>
-<li><p>管道文件</p>
-<p>思路：找到系统上默认的管道文件，并且验证写入文件是否阻塞</p>
-<ol>
-<li><p>找出系统默认的管道文件</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">find &#x2F; -type p</span><br></pre></td></tr></table></figure>
+<li><p>怎么减少”.git等文件信息泄漏”安全风险？</p>
+<p>其实不仅仅是 “.git/index”，还包括”.svn/entries”、”网站源码.tar.gz” 等文件都有可能暴露在公网给人下载，继而泄漏项目源码。</p>
+<p>根据个人有限的经验来总结，有以下方式减少风险：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">* 在devops平台做检查，比如&quot;发布部署&quot;前，检查当前产出目录下是否有敏感文件</span><br><span class="line">* 在waf中添加规则，来防护&quot;敏感文件泄漏&quot;</span><br><span class="line">* 周期性扫描</span><br><span class="line">* 依赖开发的安全意识，在&quot;编译构建&quot;时将&quot;.git目录&quot;等敏感文件删除</span><br></pre></td></tr></table></figure>
 
-<p> 可以看到CentOS 7.9系统默认存在一些管道文件</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;run&#x2F;dmeventd-client</span><br><span class="line">&#x2F;run&#x2F;dmeventd-server</span><br><span class="line">&#x2F;run&#x2F;systemd&#x2F;ask-password-block&#x2F;136:4</span><br><span class="line">&#x2F;run&#x2F;systemd&#x2F;sessions&#x2F;1.ref</span><br><span class="line">&#x2F;run&#x2F;systemd&#x2F;initctl&#x2F;fifo</span><br></pre></td></tr></table></figure>
+<p>感觉资产覆盖到位，确实能消灭这种风险。</p>
 </li>
-<li><p>验证上面的管道文件，有一个可以利用</p>
-<p> <code>echo 1 &gt; /run/systemd/ask-password-block/136:4</code>  会阻塞</p>
-<p> 这个文件在其他系统文件名略微有点不同，并且只有root用户可以读写</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">另一个CentOS7.9: &#x2F;run&#x2F;systemd&#x2F;ask-password-block&#x2F;136:0</span><br><span class="line">ubuntu：&#x2F;run&#x2F;systemd&#x2F;ask-password-block&#x2F;136:2</span><br></pre></td></tr></table></figure>
+<li><p>怎么减少”代码安全”安全风险？</p>
+<p>根据个人有限的经验来总结，有以下方式减少风险：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">* 建设白盒扫描，嵌入到devpops流程中</span><br><span class="line">* 安全部门提供安全sdk、安全编码规范</span><br><span class="line">* 其他不限于&quot;代码安全&quot;的应用安全产品，包括 rasp、黑盒扫描</span><br><span class="line">* 依赖开发的安全意识和安全编码水平</span><br><span class="line">* fuzz平台，类似[oss-fuzz](https:&#x2F;&#x2F;github.com&#x2F;google&#x2F;oss-fuzz)</span><br></pre></td></tr></table></figure>
 
-</li>
-</ol>
-<p>小结：可以用 /run/systemd/ask-password-block/136:{id} 文件来探测是否存在文件写漏洞，前提是服务有root权限</p>
+<p>个人感觉，由于 技术难度、有些场景安全技术无法解决、运营上要求非常低的误报 等原因，即使手段这么多，但是风险太难完全消除了。</p>
 </li>
 </ul>
-<ul>
-<li><p>/dev/tcp/{host}/{ip}</p>
-<p>在bash反弹shell中会用到这个。</p>
-<p>它不是文件，只是bash解释器会对/dev/tcp对特殊处理，代表了一个tcp socket。</p>
-<p>所以它不满足需求。</p>
-</li>
-<li><p>socket文件</p>
-<p>操作socket文件不是open、write、close这一套流程，所以肯定不行。</p>
-</li>
-</ul>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ul>
-<li>可以用 /run/systemd/ask-password-block/136:{id} 文件来探测是否存在文件写漏洞，前提是服务有root权限。</li>
-</ul>
-<p>最后，感谢和我讨论这个小问题的朋友。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>“.git”目录信息泄漏 + 人工代码审计 这个套路 现在感觉行不太通。</p>
+<p>另外有一个小问题：有师傅知道企业安全建设中怎么用威胁情报来拉黑ip的话，请公众号留言告诉我。</p>
 
     </div>
 
@@ -349,13 +340,13 @@
 
           <div class="post-nav">
             <div class="post-nav-item">
-                <a href="/2021-03-27-CPython%E7%9A%84%E7%BA%BF%E7%A8%8B%E4%B8%8EGIL/" rel="prev" title="CPython的线程与GIL">
-                  <i class="fa fa-chevron-left"></i> CPython的线程与GIL
+                <a href="/2021-07-12-%E5%AE%89%E5%85%A8%E5%BB%BA%E8%AE%BE-%E6%94%BB%E9%98%B2%E6%80%9D%E8%B7%AF%E5%8F%8A%E5%AE%9E%E8%B7%B5%EF%BC%88%E4%B8%80%EF%BC%89/" rel="prev" title="安全建设-攻防思路及实践（一）">
+                  <i class="fa fa-chevron-left"></i> 安全建设-攻防思路及实践（一）
                 </a>
             </div>
             <div class="post-nav-item">
-                <a href="/2021-05-08-requests.get%E5%8D%A1%E4%BD%8F/" rel="next" title="requests.get卡住">
-                  requests.get卡住 <i class="fa fa-chevron-right"></i>
+                <a href="/2021-08-02-%E4%BD%A0%E7%9A%84%E6%89%AB%E6%8F%8F%E5%99%A8%E5%8F%AF%E4%BB%A5%E7%BB%95%E8%BF%87%E9%98%B2%E7%81%AB%E5%A2%99%E4%B9%88%EF%BC%88%E4%B8%89%EF%BC%89/" rel="next" title="你的扫描器可以绕过防火墙么（二）">
+                  你的扫描器可以绕过防火墙么（二） <i class="fa fa-chevron-right"></i>
                 </a>
             </div>
           </div>
@@ -442,7 +433,7 @@ NexT.utils.loadComments('#gitalk-container', () => {
       repo        : 'gitalk-comment',
       owner       : 'leveryd',
       admin       : ['leveryd'],
-      id          : 'e3f38c676d4a4b59354faf4b2b8902e8',
+      id          : 'df9afda68320008dc58569566635718c',
         language: 'zh-CN',
       distractionFreeMode: false
     });

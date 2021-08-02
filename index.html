@@ -177,7 +177,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">27</span>
+          <span class="site-state-item-count">29</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -219,6 +219,250 @@
 
 
     <div class="main-inner index posts-expand">
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-08-02-%E4%BD%A0%E7%9A%84%E6%89%AB%E6%8F%8F%E5%99%A8%E5%8F%AF%E4%BB%A5%E7%BB%95%E8%BF%87%E9%98%B2%E7%81%AB%E5%A2%99%E4%B9%88%EF%BC%88%E4%B8%89%EF%BC%89/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021-08-02-%E4%BD%A0%E7%9A%84%E6%89%AB%E6%8F%8F%E5%99%A8%E5%8F%AF%E4%BB%A5%E7%BB%95%E8%BF%87%E9%98%B2%E7%81%AB%E5%A2%99%E4%B9%88%EF%BC%88%E4%B8%89%EF%BC%89/" class="post-title-link" itemprop="url">你的扫描器可以绕过防火墙么（二）</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2021-08-02 19:59:32 / 修改时间：23:13:39" itemprop="dateCreated datePublished" datetime="2021-08-02T19:59:32+08:00">2021-08-02</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p><a target="_blank" rel="noopener" href="https://github.com/pyn3rd/papers/blob/master/KCon_2019_WAF.pdf">How to Break Through Cloud-Based WAF</a> 提到 “post请求体过大时会绕过某些waf”。</p>
+<p>刚好今天看到一个用此方法绕过的案例：<a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/wvKfe4xxNXWEgtQE4PdTaQ">Java反序列化数据绕WAF之加大量脏数据</a></p>
+<p>这个绕过姿势记得在2017年就有人分享过，因为我对”因为性能原因所以导致waf放行”这个解释有点疑问，所以研究了一下。</p>
+<p>本文主要研究:</p>
+<ul>
+<li>为什么请求体过大时会绕过waf的防护？</li>
+<li>什么场景下可以使用这种绕过姿势攻击到后端服务？</li>
+<li>怎么测试？</li>
+</ul>
+<p>以下研究的waf都是基于openresty实现的。</p>
+<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><ul>
+<li><p>openresty怎么读请求体？</p>
+<p><a target="_blank" rel="noopener" href="https://moonbingbing.gitbooks.io/openresty-best-practices/content/openresty/get_req_body.html">获取请求 body</a> 的代码：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">ngx.req.read_body()</span><br><span class="line">local data &#x3D; ngx.req.get_body_data()</span><br><span class="line">-- local file_name &#x3D; ngx.req.get_body_file()</span><br></pre></td></tr></table></figure>
+
+<p>根据 <a target="_blank" rel="noopener" href="https://github.com/openresty/lua-nginx-module#ngxreqread_body">openresty文档</a> 得知</p>
+<blockquote>
+<p>如果请求体存放到了临时文件，就应该调用 <code>ngx.req.get_body_file</code> 接口来获取临时文件名。</p>
+<p>如果请求体存放到内存中，就应该调用 <code>ngx.req.get_body_data</code> 接口来获取请求体。</p>
+</blockquote>
+<p><em>什么时候请求体会存放到临时文件呢？</em></p>
+<p> 有两个配置选项决定nginx是否会把请求体放到临时文件:</p>
+<blockquote>
+<p><a target="_blank" rel="noopener" href="http://nginx.org/en/docs/http/ngx_http_core_module.html#client_body_buffer_size">client_body_buffer_size</a>:如果请求体大小超过此值，就会把整个请求体或者请求体的一部分写到一个临时文件。</p>
+<p><a target="_blank" rel="noopener" href="http://nginx.org/en/docs/http/ngx_http_core_module.html#client_body_in_file_only">client_body_in_file_only</a>:此选项直接决定nginx是否将请求体放到文件中。</p>
+</blockquote>
+</li>
+<li><p>为什么请求体过大时会绕过waf的防护？</p>
+<p>请求体过大，超过 client_body_buffer_size 配置的值时，请求体会写到临时文件。</p>
+<p>而很多waf不处理临时文件。相当于拿到的请求体会为空。比如曾经很火的 <a target="_blank" rel="noopener" href="https://github.com/loveshell/ngx_lua_waf/blob/master/waf.lua">ngx_lua_waf</a> 就没有临时文件相关操作。</p>
+<p><em>那为啥waf作者没有处理临时文件呢？</em></p>
+<p>可能是忘了，也可能觉得损耗性能。这里的性能我理解主要是与 io、内存有关。</p>
+<p>在openresty中读文件可以有两个api：</p>
+<blockquote>
+<p> ngx_io.open，此api是非阻塞的</p>
+<p> io.open，此api是阻塞的</p>
+</blockquote>
+<p>如果使用<code>io.open</code>读”临时文件”，整个nginx worker就会卡在这个读文件步骤中，肯定会导致整个集群能服务的最大并发数变低。</p>
+<p>如果使用<code>lua-io-nginx-module</code>模块的<code>ngx_io.open</code>非阻塞api来代替<code>io.open</code>阻塞api来读文件，虽然不会阻塞整个nginx worker，但”读文件io操作”还是要和磁盘打交道，需要中断和多次内存拷贝，还是有性能损耗。</p>
+<p>并且，如果服务是将文件一次性读取到内存中时，那”不怀好意”的人多搞几个这样”post请求体过大”的请求，就有可能导致机器内存耗尽。</p>
+</li>
+<li><p>什么场景下可以使用这种绕过姿势？</p>
+<p>即使waf放行了，也需要后端支持这种超大的请求体。而不少服务对请求体大小是有限制的。</p>
+<p>比如nginx的<a target="_blank" rel="noopener" href="http://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size">client_max_body_size</a>:如果请求体大小超过此设置值，就会返回 413 (Request Entity Too Large)  错误。 此配置为0表示不限制请求体大小。</p>
+<p>再比如php的<a target="_blank" rel="noopener" href="https://www.php.net/manual/en/ini.core.php#ini.post-max-size">post-max-size</a>:如果请求体大小超过此设置值，<code>$_POST</code>和<code>$_FILES</code>会为空。</p>
+<p><em>所以满足以下条件时，应该可以利用成功</em>:</p>
+<blockquote>
+<p>请求体大小超过waf client_body_buffer_size配置限制，且waf没有处理临时文件</p>
+<p>请求体大小未超过后端服务的大小限制</p>
+</blockquote>
+</li>
+</ul>
+<h1 id="怎么测试"><a href="#怎么测试" class="headerlink" title="怎么测试"></a>怎么测试</h1><p>客户端的测试代码如下，需要看情况调整big_str的大小</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">import requests</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">host &#x3D; &quot;a.baidu.com&quot;</span><br><span class="line">url &#x3D; &quot;http:&#x2F;&#x2F;127.0.0.1:9998&#x2F;a.php&quot;</span><br><span class="line">payload &#x3D; &quot;..&#x2F;..&#x2F;..&#x2F;&quot;</span><br><span class="line">big_str &#x3D; &quot;A&quot;*1024*1024*200  # 200M</span><br><span class="line"></span><br><span class="line">headers &#x3D; &#123;&quot;Host&quot;: host, &quot;Content-Type&quot;: &quot;application&#x2F;x-www-form-urlencoded&quot;&#125;</span><br><span class="line">data &#x3D; &quot;a&#x3D;%s&amp;b&#x3D;%s&quot; % (big_str, payload)</span><br><span class="line"></span><br><span class="line">res &#x3D; requests.post(url, data&#x3D;data, headers&#x3D;headers)</span><br><span class="line">print(res.content.decode(&quot;utf8&quot;))</span><br><span class="line">print(res.status_code)</span><br></pre></td></tr></table></figure>
+
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>本文并没有研究waf厂商是怎么解决这个问题的，比如pdf提到的stream模式是怎么实现的、stream模式是否可以绕过。</p>
+<p>绕过waf防护的原因是请求体过大时会被存放到”临时文件”中，而不处理”临时文件”是出于io、内存等性能考虑。</p>
+<p>这种绕过姿势还需要”请求体大小未超过后端服务的大小限制”才能利用成功。</p>
+<p>另外 “post请求过大为什么会绕过waf”还有两个可能的原因：</p>
+<blockquote>
+<ul>
+<li>payload刚好被”tcp分片”</li>
+<li><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/jw0vPIvgCdt1090j3-Sxqw">正则回溯次数超过限制</a></li>
+</ul>
+</blockquote>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-07-18-%E5%AE%89%E5%85%A8%E5%BB%BA%E8%AE%BE-%E6%94%BB%E9%98%B2%E6%80%9D%E8%B7%AF%E5%8F%8A%E5%AE%9E%E8%B7%B5%EF%BC%88%E4%BA%8C%EF%BC%89/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="leveryd">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="leveryd的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021-07-18-%E5%AE%89%E5%85%A8%E5%BB%BA%E8%AE%BE-%E6%94%BB%E9%98%B2%E6%80%9D%E8%B7%AF%E5%8F%8A%E5%AE%9E%E8%B7%B5%EF%BC%88%E4%BA%8C%EF%BC%89/" class="post-title-link" itemprop="url">安全建设-攻防思路及实践（二）</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2021-07-18 16:31:06" itemprop="dateCreated datePublished" datetime="2021-07-18T16:31:06+08:00">2021-07-18</time>
+    </span>
+      <span class="post-meta-item">
+        <span class="post-meta-item-icon">
+          <i class="far fa-calendar-check"></i>
+        </span>
+        <span class="post-meta-item-text">更新于</span>
+        <time title="修改时间：2021-07-19 10:25:48" itemprop="dateModified" datetime="2021-07-19T10:25:48+08:00">2021-07-19</time>
+      </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>有一个挖src的老套路：”.git目录”信息泄漏 + 人工代码审计。</p>
+<p>当网站可以访问”.git/index”时，可以用<a target="_blank" rel="noopener" href="http://www.lijiejie.com/githack-a-git-disclosure-exploit/">GitHack — 一个git泄露利用脚本</a>工具还原整个项目工程。然后对源码做代码审计，尝试挖掘漏洞。</p>
+<p>实际的案例可以见 <a target="_blank" rel="noopener" href="https://github.com/fun1355/Papers-1/blob/master/PVE-2015080201.md">百姓某处信息泄露可GET SHELL</a></p>
+<p>个人体会：对于企业内部业务的源码做代码审计来挖掘漏洞，难度比挖”成熟的框架、组件”容易太多了，都不需要攻击者掌握多少代码审计中的偏门技巧等。比如源码中非常可能就有api认证用的token，拿着token就能像也业务方一样调用api。</p>
+<h1 id="详细过程"><a href="#详细过程" class="headerlink" title="详细过程"></a>详细过程</h1><ul>
+<li><p>为啥会出现”.git目录信息泄漏”？</p>
+<p>根据个人有限的经验来看，很多公司都会建设devops平台，开发只需要在平台上提交上线单，就可以自动地拉取代码、编译构建、保存版本、发布部署。</p>
+<p>在”拉取代码”这一环节，devops平台从内部git平台上获取源码，其中就包括”.git目录”。</p>
+<p>在php、python等非编译语言的项目构建过程中，非常有可能就是简单地将整个项目全部拷贝到”产出目录”中，此时”.git目录”也会跟着被拷贝过去。</p>
+<p>等到了”发布部署”环节，”.git目录”自然就会出现在线上了。</p>
+</li>
+<li><p>利用”.git目录信息泄漏”还原”项目工程”时遇到的问题</p>
+<p>偶尔会遇到的一个问题是：不一定能访问”.git/index”就一定能用工具还原出整个项目。</p>
+<p>这个原因之前没有深究过，有可能是”.git/objects”目录下的文件无法访问。</p>
+<p>遇到这种情况时，还可以：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">* .git&#x2F;index中包含了所有的文件名，可以直接访问文件名对应的url。比如暴露出的js文件，可以直接下载后找api信息。</span><br><span class="line">* .git&#x2F;config中包含了配置信息</span><br><span class="line">* 尝试手动下载 .git&#x2F;objects 目录下的 &quot;项目工程&quot;文件</span><br></pre></td></tr></table></figure>
+
+<p>另外更常见的问题是会遇到防火墙。这个时候可以试试 <code>.git/./index</code> 、 <code>.git///index</code> 、<code>/?/../.git/index</code>、<code>/%3f/../.git/index</code> 等</p>
+</li>
+</ul>
+<h1 id="成果"><a href="#成果" class="headerlink" title="成果"></a>成果</h1><p>漏洞（包括类似”git目录”等信息泄漏）均已提交并修复，包括并不限于：</p>
+<ul>
+<li>[评级严重-360游戏]</li>
+<li>两个 [评级低危-腾讯]</li>
+<li>两个 [评级中危-腾讯]</li>
+</ul>
+<p>2021年了，感觉 “.git目录”这种信息泄漏少见了很多。</p>
+<h1 id="安全建设"><a href="#安全建设" class="headerlink" title="安全建设"></a>安全建设</h1><p>对于”.git等文件信息泄漏”和”代码安全”，这两类风险，在企业安全建设中是怎么防范的呢？</p>
+<ul>
+<li><p>怎么减少”.git等文件信息泄漏”安全风险？</p>
+<p>其实不仅仅是 “.git/index”，还包括”.svn/entries”、”网站源码.tar.gz” 等文件都有可能暴露在公网给人下载，继而泄漏项目源码。</p>
+<p>根据个人有限的经验来总结，有以下方式减少风险：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">* 在devops平台做检查，比如&quot;发布部署&quot;前，检查当前产出目录下是否有敏感文件</span><br><span class="line">* 在waf中添加规则，来防护&quot;敏感文件泄漏&quot;</span><br><span class="line">* 周期性扫描</span><br><span class="line">* 依赖开发的安全意识，在&quot;编译构建&quot;时将&quot;.git目录&quot;等敏感文件删除</span><br></pre></td></tr></table></figure>
+
+<p>感觉资产覆盖到位，确实能消灭这种风险。</p>
+</li>
+<li><p>怎么减少”代码安全”安全风险？</p>
+<p>根据个人有限的经验来总结，有以下方式减少风险：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">* 建设白盒扫描，嵌入到devpops流程中</span><br><span class="line">* 安全部门提供安全sdk、安全编码规范</span><br><span class="line">* 其他不限于&quot;代码安全&quot;的应用安全产品，包括 rasp、黑盒扫描</span><br><span class="line">* 依赖开发的安全意识和安全编码水平</span><br><span class="line">* fuzz平台，类似[oss-fuzz](https:&#x2F;&#x2F;github.com&#x2F;google&#x2F;oss-fuzz)</span><br></pre></td></tr></table></figure>
+
+<p>个人感觉，由于 技术难度、有些场景安全技术无法解决、运营上要求非常低的误报 等原因，即使手段这么多，但是风险太难完全消除了。</p>
+</li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>“.git”目录信息泄漏 + 人工代码审计 这个套路 现在感觉行不太通。</p>
+<p>另外有一个小问题：有师傅知道企业安全建设中怎么用威胁情报来拉黑ip的话，请公众号留言告诉我。</p>
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
 
     
 
@@ -1375,284 +1619,6 @@
 <li><a target="_blank" rel="noopener" href="https://nmap.org/book/synscan.html#scan-methods-fig-syn-scan-open">nmap官方文档-syn扫描</a></li>
 <li><a target="_blank" rel="noopener" href="https://nmap.org/book/scan-methods-connect-scan.html">nmap官方文档-connect扫描</a></li>
 </ul>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-05-24-%E5%85%A8%E6%B5%81%E9%87%8F%E5%85%A5%E4%BE%B5%E6%A3%80%E6%B5%8B%E7%B3%BB%E7%BB%9F%E7%9A%84%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="leveryd">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="leveryd的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2021-05-24-%E5%85%A8%E6%B5%81%E9%87%8F%E5%85%A5%E4%BE%B5%E6%A3%80%E6%B5%8B%E7%B3%BB%E7%BB%9F%E7%9A%84%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/" class="post-title-link" itemprop="url">全流量入侵检测系统的性能分析</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2021-05-24 01:15:32" itemprop="dateCreated datePublished" datetime="2021-05-24T01:15:32+08:00">2021-05-24</time>
-    </span>
-      <span class="post-meta-item">
-        <span class="post-meta-item-icon">
-          <i class="far fa-calendar-check"></i>
-        </span>
-        <span class="post-meta-item-text">更新于</span>
-        <time title="修改时间：2021-06-23 09:36:32" itemprop="dateModified" datetime="2021-06-23T09:36:32+08:00">2021-06-23</time>
-      </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>16年在房多多的时候参与开发nids，用<a target="_blank" rel="noopener" href="https://github.com/bro/bro">bro</a>来做抓包、解包和规则引擎。</p>
-<p>当时对bro解析http的成功率做测试，生产环境中发现差不多有10%-20%的http请求并没有解析成功。</p>
-<p>我当时的测试思路如下：</p>
-<ul>
-<li>客户端发送http请求，请求中带有特殊标记</li>
-<li>统计bro http日志中有带有标记的数量</li>
-</ul>
-<p>10%-20%的解析失败，意味着有可能有攻击行为没有检测到。因此需要提升http流量解析的成功率。</p>
-<p>当时在网上也搜到一些提升抓包性能的方案，比如pf_ring、dpdk等。不过当时理解不了原理，最近补了一些网络方面的知识，所以就来回顾一下这个案例。</p>
-<p>我主要想弄清楚以下问题：</p>
-<ul>
-<li>pf_ring真的能提高抓包性能么？</li>
-<li>pf_ring为什么能提高性能？</li>
-</ul>
-<p>基于以下两点原因，本文只讨论pf_ring、不讨论dpdk：</p>
-<ul>
-<li>端口扫描工具masscan支持pf_ring，而不支持dpdk。我后面要分析masscan</li>
-<li>精力有限，而pf_ring技术点比dpdk似乎要少一些、简单一点</li>
-</ul>
-<p>另外本文只讨论 <a target="_blank" rel="noopener" href="https://www.ntop.org/pf_ring/pf_ring-and-transparent-mode/">pf_ring的三种模式</a> 中的默认模式</p>
-<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><ul>
-<li><p>先理解一下”问题背景”里场景的性能</p>
-<p>从网卡上的流量到bro将http请求写到日志中，可以大概分成三个部分：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">* 抓包（包从网卡到用户空间）</span><br><span class="line">* 解包（解析出http、dns、ssh、ftp等应用层协议）</span><br><span class="line">* 写磁盘</span><br></pre></td></tr></table></figure>
-
-<p>这每一步都会有性能损耗，但是性能损耗的占比可能不同。所以仅提升”抓包”这一部分的性能有可能并不能提升整体性能。</p>
-<p>用一些性能工具（比如perf）结合代码 应该可以看出来bro每个阶段的cpu消耗占比。</p>
-<p>这篇文章只关注”抓包”这个环节的性能。</p>
-</li>
-<li><p>为什么会丢包？</p>
-<p>丢包的原因太多了，在<code>网络传输 -&gt; 网卡 -&gt; 驱动 -&gt; 内核sk_buff -&gt; tcp/ip协议栈 -&gt; 用户态</code>每一个环节都有可能丢包。</p>
-<p>可以看 <a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/256428917">图解Linux网络包接收过程</a> 这篇文章了解完整的收包过程。</p>
-<p>关于”排查各个环节丢包的工具和思路”，由于没有实践过多少，这里就不推荐啥文章了。</p>
-</li>
-<li><p>抓包过程中的性能和哪些因素有关？</p>
-<p>目前我理解的主要和三个方面有关：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">* 内存拷贝的次数</span><br><span class="line">* 内核处理网卡中断的频率</span><br><span class="line">* 系统调用产生的中断次数</span><br></pre></td></tr></table></figure>
-
-<p>所以pf_ring做了以下事情：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">* 通过mmap映射，减少了一次内存拷贝</span><br><span class="line">* 通过napi机制减少内核响应网卡硬中断的次数</span><br><span class="line">* 也因为mmap映射，用户层不需要频繁地通过recvfrom等系统调用获取网络包</span><br></pre></td></tr></table></figure>
-
-<p>如果想了解mmap怎么实现内核态和用户态的内存映射，可以参考 <a target="_blank" rel="noopener" href="https://nieyong.github.io/wiki_cpu/mmap%E8%AF%A6%E8%A7%A3.html">文章中的示例1</a> ，有demo代码可以跑起来。</p>
-<p>pf_ring的实现方式和文章中的差不多：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">* 内核同样会注册mmap函数供用户态调用</span><br><span class="line">* 内核同样会调用&#96;remap_pfn_range&#96;函数来做内存映射</span><br></pre></td></tr></table></figure>
-
-<p>如果想了解napi机制，可以看 <a target="_blank" rel="noopener" href="https://wiki.linuxfoundation.org/networking/napi">napi官方文档</a>。</p>
-<p>我对napi的理解：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">* 它的作用是：将包从网卡放到内核内存</span><br><span class="line">* 如果每次都是网卡产生中断告诉cpu有数据包来了，在流量大的请求下就需要响应中断很多次。napi减少了硬中断的响应次数，所以提升了性能。</span><br><span class="line">* 它由内核驱动实现</span><br></pre></td></tr></table></figure>
-
-<p>如果想了解napi和非napi的实现上的区别，可以参考 <a target="_blank" rel="noopener" href="http://www.hyuuhit.com/2018/07/25/receive-packet/">Linux kernel 链路层帧接收</a> 并对照内核源码分析。此文章简要分析了两个驱动，分别代表了napi实现和非napi实现。</p>
-</li>
-<li><p>pf_ring真的可以提高libpcap性能么？</p>
-<p>新版本的libpcap采用PACKET_MMAP方式收包。</p>
-<p>PACKET_MMAP是内核实现的一种机制,发包和收包都可以用这个技术。它同样使用<code>mmap</code>减少了内存拷贝和系统调用，因此提升了性能。</p>
-<p>PACKET_MMAP的详细介绍推荐看<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/master/Documentation/networking/packet_mmap.rst">内核文档</a>，写得比较全（内容比较多，我也没完整过一遍）。</p>
-<p>我对”基于pf_ring非零拷贝的libpcap”和”基于packet_mmap的libpcap”对比，结论如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">* 两者内存拷贝次数一样</span><br><span class="line">* 两者使用相同的驱动，都用到了napi</span><br><span class="line">* 用户态读数据时，基本都不需要经过系统调用</span><br></pre></td></tr></table></figure>
-
-<p>根据这个对比，我觉得”pf_ring非零拷贝模式”应该不会大幅度提高抓包性能。</p>
-<p>为了验证自己的结论，就做个实验来看看。</p>
-</li>
-<li><p>实验验证</p>
-<p>在自己实验前，看到 <a target="_blank" rel="noopener" href="http://cea.ceaj.org/CN/article/downloadArticleFile.do?attachType=PDF&id=30309">PF_RING与NAPI结合的捕包性能优化和仿真.pdf</a> 这篇实践文章，推荐阅读。此文章结论是pf_ring可以提高抓包性能</p>
-<p>我做的实验过程见公众号中另一篇文章”验证pf_ring性能”，结论是pf_ring可以提高抓包成功率。</p>
-<p>实验结果上虽然可以看出来提高抓包成功率，但是看不出来是否有大幅度提升。</p>
-</li>
-</ul>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>实验的结论和我自己对原理的分析并没有对应上，也并没有完全解决我自己一开始想弄清楚的问题。</p>
-<p>因为文章中的很多技术我在研究案例之前不怎么知道，另外也没有找到搞网络的大佬愿意帮我校对文章，所以不能保证文章中的结论都是对的。</p>
-<p>如果读者发现有什么错误的地方，请公众号后台私信我。</p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021-05-08-requests.get%E5%8D%A1%E4%BD%8F/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="leveryd">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="leveryd的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2021-05-08-requests.get%E5%8D%A1%E4%BD%8F/" class="post-title-link" itemprop="url">requests.get卡住</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2021-05-08 14:37:34" itemprop="dateCreated datePublished" datetime="2021-05-08T14:37:34+08:00">2021-05-08</time>
-    </span>
-      <span class="post-meta-item">
-        <span class="post-meta-item-icon">
-          <i class="far fa-calendar-check"></i>
-        </span>
-        <span class="post-meta-item-text">更新于</span>
-        <time title="修改时间：2021-05-20 10:02:56" itemprop="dateModified" datetime="2021-05-20T10:02:56+08:00">2021-05-20</time>
-      </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>之前线上的漏洞扫描遇到一个奇怪的问题:requests.get即使设置了timeout，仍然卡住。</p>
-<p>看lijiejie大佬 <a target="_blank" rel="noopener" href="http://www.lijiejie.com/requests-get-hang/">requests.get 异常hang住</a> 也碰到过这个问题。</p>
-<p>所以，我想要探究以下问题:</p>
-<ul>
-<li>requests库中timeout参数的具体含义是什么?</li>
-<li>为什么requests.get时timeout参数”失效”?</li>
-</ul>
-<h1 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h1><h2 id="requests库中timeout参数的具体含义是什么"><a href="#requests库中timeout参数的具体含义是什么" class="headerlink" title="requests库中timeout参数的具体含义是什么?"></a>requests库中timeout参数的具体含义是什么?</h2><ul>
-<li><p>requests库中timeout参数是什么?</p>
-<p>根据<a target="_blank" rel="noopener" href="https://docs.python-requests.org/en/master/user/advanced/#timeouts">官网文档</a>所说,timeout可以表示(connect超时时间,read超时时间)</p>
-</li>
-<li><p>什么是connect超时?</p>
-<p>客户端需要connect系统调用来和服务端做tcp三次握手，当服务地址在互联网上不存在时，connect系统调用耗时就会比较长。</p>
-<p>比如请求1.1.2.3 过一段时间后会返回一个connect tiemout:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python -c &#39;import requests;requests.get(&quot;http:&#x2F;&#x2F;1.1.2.3&quot;)&#39;</span><br></pre></td></tr></table></figure>
-
-<p>在上面请求1.1.2.3这个不存在的ip时，客户端发出的 syn 包没有任何响应，于是客户端会重传syn包</p>
-<ul>
-<li>重传次数在 /proc/sys/net/ipv4/tcp_syn_retries 可以配置</li>
-<li>重传间隔时间并不是固定的，在Linux系统上测试结果是 [1,3,7,15,31]s，似乎就是 2^(n+1)-1</li>
-</ul>
-<p>如果重试完后仍然没有收到ack包，就会出现connect timeout</p>
-<p>而request的timeout参数就可以减少这个等重传的时间。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python -c &#39;import requests;requests.get(&quot;http:&#x2F;&#x2F;1.1.2.3&quot;, timeout&#x3D;(1, 100))&#39; # 1s的connect超时设置</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>怎么实现的connect超时控制?</p>
-<p>connect、read等系统调用是没有参数可以控制超时时间的，那connect超时控制是怎么实现的呢?</p>
-<p>在Modules/socketmodule.c可以找到connect函数的实现</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">1. socket设置成非阻塞模式</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line">sock_call_ex(...,_PyTime_t timeout) &#123;</span><br><span class="line">  ...</span><br><span class="line">  interval &#x3D; timeout;</span><br><span class="line">  ...</span><br><span class="line">  res &#x3D; internal_select(s, writing, interval, connect);</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static int internal_select(PySocketSockObject *s, int writing, _PyTime_t interval,</span><br><span class="line">            int connect)&#123;</span><br><span class="line">  ...</span><br><span class="line">  ms &#x3D; _PyTime_AsMilliseconds(interval, _PyTime_ROUND_CEILING);</span><br><span class="line">  ...</span><br><span class="line">  n &#x3D; poll(&amp;pollfd, 1, (int)ms);  2. poll系统调用，如果超时,poll系统调用就会返回</span><br></pre></td></tr></table></figure>
-
-<p>流程如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">* 设置socket为非阻塞模式后，调用connect系统调用</span><br><span class="line">* 使用poll系统调用来判断是否超时</span><br></pre></td></tr></table></figure>
-
-<p>实际上这是一种很通用的对connect做超时控制的方式，在其他tcp客户端中也可以这么实现超时控制。</p>
-</li>
-<li><p>什么是read超时?</p>
-<p>客户端需要调用read系统调用来读取服务端发送的数据，如果服务端一直不发送数据，读数据时就会卡住。</p>
-<p>比如我们用nc命令开启一个服务端只负责监听建立链接,不发送数据.</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nc -l 8081</span><br></pre></td></tr></table></figure>
-<p>客户端请求nc开启的服务,代码如下,3s后会出现读超时</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">import requests</span><br><span class="line">requests.get(&quot;http:&#x2F;&#x2F;127.0.0.1:8081&quot;, timeout&#x3D;(1,3)) # read超时时间设置成3s</span><br></pre></td></tr></table></figure>
-
-</li>
-</ul>
-<h2 id="为什么requests-get时timeout参数”失效”"><a href="#为什么requests-get时timeout参数”失效”" class="headerlink" title="为什么requests.get时timeout参数”失效”?"></a>为什么requests.get时timeout参数”失效”?</h2><p>  requests.get在 dns解析、connect、read 这些阶段都有可能耗时比较久。下面分别说一下timeout在这三个阶段中是否生效。</p>
-<p>  文档中只说了timeout控制connect、read两个阶段，说明dns解析耗时很久时timeout是管不了的。<br>  我自己实验，也得出相同的结论：dns解析时间即使超过timeout，也不会抛出异常。</p>
-<p>  connect阶段在上面已经分析过，timeout是可以控制这一阶段最多花费多长时间的。</p>
-<p>  Python中的read超时不是一个全局的时间，它只是在每一次读socket时不能超过这个时间。而一次响应的读取可能有多次read操作。这儿可能和其他的http客户端（比如curl）等超时时间含义不同。</p>
-<p>  如果服务端能够让客户端read非常多次，且每一次时间都不超过read timeout值，这个时候客户端会卡住。</p>
-<p>  所以，在下面两种情况下是会造成read timeout参数“失效”的:</p>
-<ul>
-<li><p>响应中content-length是一个特别大的数，服务端缓慢的每次响应1字节</p>
-</li>
-<li><p>服务端返回的响应码是100，同时服务端持续不断地返回响应头，也会导致客户端持续不断的read</p>
-<p>比如下面的服务端持续不断地返回响应头，会导致客户端卡住。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"># coding:utf-8</span><br><span class="line">from socket import *</span><br><span class="line">from multiprocessing import *</span><br><span class="line">from time import sleep</span><br><span class="line"></span><br><span class="line">def dealWithClient(newSocket,destAddr):</span><br><span class="line">    recvData &#x3D; newSocket.recv(1024)</span><br><span class="line">    newSocket.send(b&quot;&quot;&quot;HTTP&#x2F;1.1 100 OK\n&quot;&quot;&quot;)</span><br><span class="line"></span><br><span class="line">    while True:</span><br><span class="line">        # recvData &#x3D; newSocket.recv(1024)</span><br><span class="line">        newSocket.send(b&quot;&quot;&quot;x:a\n&quot;&quot;&quot;)</span><br><span class="line"></span><br><span class="line">        if len(recvData)&gt;0:</span><br><span class="line">            # print(&#39;recv[%s]:%s&#39;%(str(destAddr), recvData))</span><br><span class="line">            pass</span><br><span class="line">        else:</span><br><span class="line">            print(&#39;[%s]close&#39;%str(destAddr))</span><br><span class="line">            sleep(10)</span><br><span class="line">            print(&#39;over&#39;)</span><br><span class="line">            break</span><br><span class="line"></span><br><span class="line">    # newSocket.close()</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">def main():</span><br><span class="line"></span><br><span class="line">    serSocket &#x3D; socket(AF_INET, SOCK_STREAM)</span><br><span class="line">    serSocket.setsockopt(SOL_SOCKET, SO_REUSEADDR  , 1)</span><br><span class="line">    localAddr &#x3D; (&#39;&#39;, 8085)</span><br><span class="line">    serSocket.bind(localAddr)</span><br><span class="line">    serSocket.listen(5)</span><br><span class="line"></span><br><span class="line">    try:</span><br><span class="line">        while True:</span><br><span class="line">            newSocket,destAddr &#x3D; serSocket.accept()</span><br><span class="line"></span><br><span class="line">            client &#x3D; Process(target&#x3D;dealWithClient, args&#x3D;(newSocket,destAddr))</span><br><span class="line">            client.start()</span><br><span class="line"></span><br><span class="line">            newSocket.close()</span><br><span class="line">    finally:</span><br><span class="line">        serSocket.close()</span><br><span class="line"></span><br><span class="line">if __name__ &#x3D;&#x3D; &#39;__main__&#39;:</span><br><span class="line">    main()</span><br></pre></td></tr></table></figure>
-
-<p>更多的讨论可以见提交的bug <a target="_blank" rel="noopener" href="https://bugs.python.org/issue44022">urllib http client possible infinite loop on a 100 Continue response</a></p>
-</li>
-</ul>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>请求在 dns解析、connect、read 这些阶段都有可能耗时很久，其中：</p>
-<ul>
-<li>dns解析阶段 不受timeout参数控制</li>
-<li>connect阶段 受timeout参数控制</li>
-<li>read阶段 timeout不是全局的，如果服务端让客户端有很多次read操作，就有可能让客户端卡住</li>
-</ul>
-<p>阻塞时的connect系统调用是有默认的最大时间限制，这个和系统配置有关；可以用”非阻塞connect+select/poll”来实现connect的超时控制。</p>
-<p>在排查这个case原因时，发现这里存在潜在的dos攻击问题，也上报给Python官方，很快被修复了。</p>
 
       
     </div>
